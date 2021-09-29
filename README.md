@@ -1,11 +1,11 @@
-### Elesto agent
+## Elesto agent
 
-The [Elesto Protocol]() is a Decentralized Key Management System (DKMS) which needs agents to implement certain protocols to allow the project to leverage [SSI]()
+The [Elesto Protocol](https://github.com/allinbits/cosmos-cash) is a Decentralized Key Management System (DKMS) which needs agents to implement certain protocols to allow the project to leverage Self sovereign identity [SSI](https://en.wikipedia.org/wiki/Self-sovereign_identity)
 
 ## Key Characteristics
 
-- A blockchain interface layer (known as a resolver) for creating and signing blockchain transactions.
-- A resolver can be seen as part of a larger component known as the [VDR]():
+- A [blockchain interface layer](https://github.com/allinbits/cosmos-cash-resolver) (known as a resolver) for creating and signing blockchain transactions.
+- A resolver can be seen as part of a larger component known as the [VDR](https://github.com/allinbits/cosmos-cash):
   > Aries Verifiable Data Registry Interface: An interface for verifying data against an underlying ledger.
 - A cryptographic wallet that can be used for secure storage of cryptographic secrets and other information (the secure storage tech, not a UI) used to build blockchain clients.
 - An encrypted messaging system for allowing off-ledger interaction between those clients using multiple transport protocols.
@@ -37,3 +37,6 @@ The following protocols are needed in the Elesto project.
 
 ### 10. Verifiable
 
+## How to run
+
+- `./scripts/start-agent.sh`
