@@ -1,11 +1,11 @@
 #!/bin/bash
 
 echo "Starting alice agent on port: 7090"
-#dlv debug ../cmd/elesto-agent/main.go -- start \
-go run ../cmd/elesto-agent/main.go start \
+#go run ../cmd/elesto-agent/main.go start \
+dlv debug ../cmd/elesto-agent/main.go -- start \
 	--api-host localhost:7090 \
-	--inbound-host http@localhost:7091,ws@localhost:7092 \
-	--inbound-host-external http@http://localhost:7091,ws@ws://localhost:7092 \
+	--inbound-host http@localhost:7091 \
+	--inbound-host-external http@http://localhost:7091 \
 	--webhook-url http://localhost:7082 \
 	--agent-default-label AliceAgent \
 	--database-type leveldb \

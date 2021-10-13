@@ -159,19 +159,26 @@ func main() {
 	println("6. ALICE lists connections", reqURL)
 	get(client, reqURL, &connections)
 
-	reqURL = fmt.Sprint(aliceAgent, "/connections/", receiveInvite.ConnectionID, "/accept-request")
-	println("7. ALICE accepts the connection request (replied from bob)", reqURL)
-	post(client, reqURL, nil, &confirmExchange)
+	for _, c := range connections.Results {
+		if c.State == "requested" {
+			reqURL = fmt.Sprint(aliceAgent, "/connections/", c.ConnectionID, "/accept-request")
+			println("7. ALICE accepts the connection request (replied from bob)", reqURL)
+			post(client, reqURL, nil, &confirmExchange)
 
+			reqURL = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID)
+			println("8.1 BOB get connection", receiveInvite.ConnectionID)
+			//var accept de.AcceptInvitationResponse
+			get(client, reqURL, &connection)
+			println("8.1 Connection state", connection.Result.State)
 
-	// Check connection
-	reqURL = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID)
-	println("8.1 BOB inspect the connection", reqURL)
-	get(client, reqURL, &connection)
+			reqURL = fmt.Sprint(aliceAgent, "/connections/", c.ConnectionID)
+			println("8.2 ALICE get connection", c.ConnectionID)
+			//var accept de.AcceptInvitationResponse
+			get(client, reqURL, &connection)
+			println("8.2 Connection state", connection.Result.State)
+		}
+	}
 
-	reqURL = fmt.Sprint(aliceAgent, "/connections/", receiveInvite.ConnectionID)
-	println("8.2 ALICE inspect the connection", reqURL)
-	get(client, reqURL, &connection)
 
 	print("yey!")
 }
