@@ -2,14 +2,18 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
 
 	de "github.com/hyperledger/aries-framework-go/pkg/controller/command/didexchange"
+	ks "github.com/hyperledger/aries-framework-go/pkg/controller/command/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/didcomm/protocol/didexchange"
 )
 
@@ -35,14 +39,28 @@ func request(client *http.Client, method, url string, requestBody io.Reader, val
 		fmt.Print(err.Error())
 	}
 	json.Unmarshal(bodyBytes, &val)
-	fmt.Printf("---> Request URL:\n %s\n<--- Reply:\n%s\n", url, bodyBytes)
+	fmt.Printf("---> Request URL:\n %s\nPayload:\n%s\n", url, requestBody)
+	fmt.Printf("<--- Reply:\n%s\n",  bodyBytes)
 }
 
-func post(client *http.Client, url string, requestBody io.Reader, val interface{}) {
-	request(client, "POST", url, requestBody, val)
+func post(client *http.Client, url string, requestBody, val interface{}) {
+	if requestBody != nil {
+		request(client, "POST", url, bitify(requestBody), val)
+	} else {
+		request(client, "POST", url, nil, val)
+	}
+
 }
 func get(client *http.Client, url string, val interface{}) {
 	request(client, "GET", url, nil, val)
+}
+
+func bitify(in interface{}) io.Reader {
+	v, err := json.Marshal(in)
+	if err!=nil {
+		panic(err.Error())
+	}
+	return bytes.NewBuffer(v)
 }
 
 func main() {
@@ -55,19 +73,23 @@ func main() {
 		bobDID     = "did:cosmos:net:cash:bob"
 		aliceAgent = "http://localhost:7090"
 		aliceDID     = "did:cosmos:net:cash:alice"
-		url        string
-		client     = &http.Client{}
-		msg []byte
-		err error
 	)
 
 	var(
+		keySetRsp ks.CreateKeySetResponse
 		connection de.QueryConnectionResponse
 		connections de.QueryConnectionsResponse
 		invite de.CreateInvitationResponse
+		//implicitInvite de.ImplicitInvitationResponse
 		receiveInvite de.ReceiveInvitationResponse
 		acceptInvite de.AcceptInvitationResponse
 		confirmExchange de.ExchangeResponse
+	)
+
+	var (
+		client     = &http.Client{}
+		reqURL        string
+		params     url.Values
 	)
 
 	println("DID Exchange")
@@ -86,58 +108,70 @@ func main() {
 	println("ALICE", aliceDID)
 	println("BOB  ", bobDID)
 	routerID := fmt.Sprint(rand.Int())
+	println("router id", routerID)
+
+
+
+	v, _ := base64.StdEncoding.DecodeString(keySetRsp.PublicKey)
+	println("keyID", keySetRsp.KeyID)
+	println("keyPub (base64)", keySetRsp.PublicKey)
+	println("keyPub (hex)", hex.EncodeToString(v))
 
 	// Create invitation
-	url = fmt.Sprint(aliceAgent, "/connections/create-invitation?public=", bobDID, "&alias=hellothere&router_connection_id=",routerID)
-	println("1. ALICE creates an invitation", url)
-	post(client, url, nil, &invite)
+	params = url.Values{}
+	params.Add("public", aliceDID)
+	reqURL = fmt.Sprint(aliceAgent, "/connections/create-invitation?public=", aliceDID, "&label=AliceAgent")
+	println("1. ALICE creates an invitation", reqURL)
+	post(client, reqURL, nil, &invite)
 
-	msg, err = json.Marshal(invite)
-	if err != nil {
-		panic(err)
-	}
+	//params = url.Values{}
+	//params.Add("their_did", aliceDID)
+	//params.Add("their_label", "AliceAgent")
+	//params.Add("their_did", bobDID)
+	//params.Add("their_did", "BobAgent")
+	//reqURL = fmt.Sprint(aliceAgent, "/connections/create-implicit-invitation?", params.Encode())
+	//println("1. ALICE creates an implicit invitation", reqURL)
+	//post(client, reqURL, nil, &implicitInvite)
 
-	url = fmt.Sprint(bobAgent, "/connections/receive-invitation")
-	println("2. BOB receive the invitation", url)
-
-	post(client, url, bytes.NewBuffer(msg), &receiveInvite)
+	reqURL = fmt.Sprint(bobAgent, "/connections/receive-invitation")
+	println("2. BOB receive the invitation", reqURL)
+	post(client, reqURL, invite.Invitation, &receiveInvite)
 
 	// Check connection
-	url = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID)
-	println("3. BOB inspect the invitation", url)
-	get(client, url, &connection)
+	reqURL = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID)
+	println("3. BOB inspect the invitation", reqURL)
+	get(client, reqURL, &connection)
 
 
 	// Check connection
-	url = fmt.Sprint(bobAgent, "/connections")
-	println("4. BOB lists connections ", url)
-	get(client, url, &connections)
+	reqURL = fmt.Sprint(bobAgent, "/connections")
+	println("4. BOB lists connections ", reqURL)
+	get(client, reqURL, &connections)
 
 
-	url = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID, "/accept-invitation")
-	println("5. BOB accepts the connection", url)
+	reqURL = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID, "/accept-invitation")
+	println("5. BOB accepts the connection", reqURL)
 	//var accept de.AcceptInvitationResponse
-	post(client, url, nil, &acceptInvite)
+	post(client, reqURL, nil, &acceptInvite)
 
 	// Check connection
-	url = fmt.Sprint(aliceAgent, "/connections")
-	println("6. ALICE lists connections", url)
-	get(client, url, &connections)
+	reqURL = fmt.Sprint(aliceAgent, "/connections")
+	println("6. ALICE lists connections", reqURL)
+	get(client, reqURL, &connections)
 
-	url = fmt.Sprint(aliceAgent, "/connections/", receiveInvite.ConnectionID, "/accept-request")
-	println("7. ALICE accepts the connection request (replied from bob)", url)
-	post(client, url, nil, &confirmExchange)
+	reqURL = fmt.Sprint(aliceAgent, "/connections/", receiveInvite.ConnectionID, "/accept-request")
+	println("7. ALICE accepts the connection request (replied from bob)", reqURL)
+	post(client, reqURL, nil, &confirmExchange)
 
 
 	// Check connection
-	url = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID)
-	println("8.1 BOB inspect the connection", url)
-	get(client, url, &connection)
+	reqURL = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID)
+	println("8.1 BOB inspect the connection", reqURL)
+	get(client, reqURL, &connection)
 
-	url = fmt.Sprint(aliceAgent, "/connections/", receiveInvite.ConnectionID)
-	println("8.2 ALICE inspect the connection", url)
-	get(client, url, &connection)
-
+	reqURL = fmt.Sprint(aliceAgent, "/connections/", receiveInvite.ConnectionID)
+	println("8.2 ALICE inspect the connection", reqURL)
+	get(client, reqURL, &connection)
 
 	print("yey!")
 }
