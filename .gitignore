@@ -3,6 +3,8 @@
 *.so
 *.dylib
 -*
+**/alice-*
+**/bob-*
 
 .swp
 vendor

@@ -2,6 +2,8 @@ module github.com/allinbits/cosmos-cash-agent
 
 go 1.16
 
+//replace github.com/hyperledger/aries-framework-go => /home/ghost/git/hyperledger/aries-framework-go
+
 require (
 	github.com/cenkalti/backoff/v4 v4.0.2
 	github.com/gorilla/mux v1.7.3
