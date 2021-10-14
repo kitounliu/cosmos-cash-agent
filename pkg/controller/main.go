@@ -14,13 +14,8 @@ import (
 
 	de "github.com/hyperledger/aries-framework-go/pkg/controller/command/didexchange"
 	ks "github.com/hyperledger/aries-framework-go/pkg/controller/command/kms"
-	"github.com/hyperledger/aries-framework-go/pkg/didcomm/protocol/didexchange"
+	"github.com/hyperledger/aries-framework-go/pkg/controller/command/messaging"
 )
-
-// Invitation model for DID Exchange invitation.
-type Invitation struct {
-	*didexchange.Invitation
-}
 
 func request(client *http.Client, method, url string, requestBody io.Reader, val interface{}) {
 	req, err := http.NewRequest(method, url, requestBody)
@@ -40,7 +35,7 @@ func request(client *http.Client, method, url string, requestBody io.Reader, val
 	}
 	json.Unmarshal(bodyBytes, &val)
 	fmt.Printf("---> Request URL:\n %s\nPayload:\n%s\n", url, requestBody)
-	fmt.Printf("<--- Reply:\n%s\n",  bodyBytes)
+	fmt.Printf("<--- Reply:\n%s\n", bodyBytes)
 }
 
 func post(client *http.Client, url string, requestBody, val interface{}) {
@@ -57,7 +52,7 @@ func get(client *http.Client, url string, val interface{}) {
 
 func bitify(in interface{}) io.Reader {
 	v, err := json.Marshal(in)
-	if err!=nil {
+	if err != nil {
 		panic(err.Error())
 	}
 	return bytes.NewBuffer(v)
@@ -65,31 +60,91 @@ func bitify(in interface{}) io.Reader {
 
 func main() {
 
+	var (
+		bobAgent   = "http://localhost:8090"
+		bobDID     = "did:cosmos:net:cash:bob"
+		aliceAgent = "http://localhost:7090"
+		aliceDID   = "did:cosmos:net:cash:alice"
+	)
+
+	bobConnID, _ := DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID)
+	DIDMessaging(bobAgent, aliceAgent, bobConnID)
+
+	print("yey!")
+}
+
+type genericInviteMsg struct {
+	ID      string   `json:"@id"`
+	Type    string   `json:"@type"`
+	Purpose []string `json:"~purpose"`
+	Message string   `json:"message"`
+	From    string   `json:"from"`
+}
+
+func DIDMessaging(bobAgent, aliceAgent, connID string) {
+	// DID Messaging
+	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/rest/openapi_demo.md#steps-for-custom-message-handling
+
+	var (
+		client = &http.Client{}
+		reqURL string
+	)
+
+	var (
+		createService messaging.RegisterMsgSvcArgs
+		genericMsg    genericInviteMsg
+		request       messaging.SendNewMessageArgs
+	)
+
+	// Messaging service
+	reqURL = fmt.Sprint(aliceAgent, "/message/register-service")
+	println("7. ALICE creates a service for BOB to send messages", reqURL)
+	createService.Type = "https://didcomm.org/generic/1.0/message"
+	createService.Purpose = []string{"meeting", "appointment", "event"}
+	createService.Name = "generic-invite"
+
+	var resp interface{}
+	post(client, reqURL, createService, resp)
+
+	reqURL = fmt.Sprint(aliceAgent, "/message/services")
+	println("8. ALICE verifies the service has been created", reqURL)
+	get(client, reqURL, resp)
+
+	genericMsg.ID = "12123123213213"
+	genericMsg.Type = "https://didcomm.org/generic/1.0/message"
+	genericMsg.Purpose = []string{"meeting"}
+	genericMsg.Message = "fight me you coward"
+	genericMsg.From = "Bob"
+
+	rawBytes, _ := json.Marshal(genericMsg)
+
+	request.ConnectionID = connID
+	request.MessageBody = rawBytes
+
+	reqURL = fmt.Sprint(bobAgent, "/message/send")
+	println("9. BOB sends a message of type generic invite to ALICE", reqURL)
+	post(client, reqURL, request, resp)
+}
+
+func DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID string) (string, string) {
 	// DID Exchange
 	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/rest/openapi_demo.md#steps-for-didexchange
 
 	var (
-		bobAgent = "http://localhost:8090"
-		bobDID     = "did:cosmos:net:cash:bob"
-		aliceAgent = "http://localhost:7090"
-		aliceDID     = "did:cosmos:net:cash:alice"
-	)
-
-	var(
-		keySetRsp ks.CreateKeySetResponse
-		connection de.QueryConnectionResponse
-		connections de.QueryConnectionsResponse
-		invite de.CreateInvitationResponse
-		//implicitInvite de.ImplicitInvitationResponse
-		receiveInvite de.ReceiveInvitationResponse
-		acceptInvite de.AcceptInvitationResponse
-		confirmExchange de.ExchangeResponse
+		client = &http.Client{}
+		reqURL string
+		params url.Values
 	)
 
 	var (
-		client     = &http.Client{}
-		reqURL        string
-		params     url.Values
+		keySetRsp   ks.CreateKeySetResponse
+		connection  de.QueryConnectionResponse
+		connections de.QueryConnectionsResponse
+		invite      de.CreateInvitationResponse
+		//implicitInvite de.ImplicitInvitationResponse
+		receiveInvite   de.ReceiveInvitationResponse
+		acceptInvite    de.AcceptInvitationResponse
+		confirmExchange de.ExchangeResponse
 	)
 
 	println("DID Exchange")
@@ -109,8 +164,6 @@ func main() {
 	println("BOB  ", bobDID)
 	routerID := fmt.Sprint(rand.Int())
 	println("router id", routerID)
-
-
 
 	v, _ := base64.StdEncoding.DecodeString(keySetRsp.PublicKey)
 	println("keyID", keySetRsp.KeyID)
@@ -142,12 +195,10 @@ func main() {
 	println("3. BOB inspect the invitation", reqURL)
 	get(client, reqURL, &connection)
 
-
 	// Check connection
 	reqURL = fmt.Sprint(bobAgent, "/connections")
 	println("4. BOB lists connections ", reqURL)
 	get(client, reqURL, &connections)
-
 
 	reqURL = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID, "/accept-invitation")
 	println("5. BOB accepts the connection", reqURL)
@@ -159,6 +210,7 @@ func main() {
 	println("6. ALICE lists connections", reqURL)
 	get(client, reqURL, &connections)
 
+	var aliceConnID string
 	for _, c := range connections.Results {
 		if c.State == "requested" {
 			reqURL = fmt.Sprint(aliceAgent, "/connections/", c.ConnectionID, "/accept-request")
@@ -173,12 +225,12 @@ func main() {
 
 			reqURL = fmt.Sprint(aliceAgent, "/connections/", c.ConnectionID)
 			println("8.2 ALICE get connection", c.ConnectionID)
+			aliceConnID = c.ConnectionID
 			//var accept de.AcceptInvitationResponse
 			get(client, reqURL, &connection)
 			println("8.2 Connection state", connection.Result.State)
 		}
 	}
 
-
-	print("yey!")
+	return receiveInvite.ConnectionID, aliceConnID
 }
