@@ -6,7 +6,7 @@ dlv debug ../cmd/elesto-agent/main.go -- start \
 	--api-host localhost:7090 \
 	--inbound-host http@localhost:7091 \
 	--inbound-host-external http@http://localhost:7091 \
-	--webhook-url http://localhost:7082 \
+	--webhook-url http://localhost:7082/wh/alice \
 	--agent-default-label AliceAgent \
 	--database-type leveldb \
 	--database-prefix alice \
