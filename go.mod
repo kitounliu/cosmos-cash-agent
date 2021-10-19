@@ -11,6 +11,8 @@ require (
 	github.com/hyperledger/aries-framework-go/component/storage/leveldb v0.0.0-20210923135755-9446ee81c3b4
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210820175050-dcc7a225178d
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210820175050-dcc7a225178d
+	github.com/labstack/echo/v4 v4.6.1
 	github.com/rs/cors v1.7.0
 	github.com/spf13/cobra v1.2.1
+	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324
 )

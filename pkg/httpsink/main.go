@@ -1,16 +1,13 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"sync/atomic"
-	"time"
+	"strings"
 )
 
 type key int
@@ -22,117 +19,98 @@ const (
 var (
 	listenAddr string
 	healthy    int32
+	maxRequestsPerSecond int
+	queues     map[string]chan string
 )
 
+
+type Payload struct {
+	Source string
+	Data  []byte
+
+}
+
 func main() {
-	flag.StringVar(&listenAddr, "listen", ":5000", "server listen address")
+	flag.StringVar(&listenAddr, "listen", ":2110", "server listen address")
+	flag.IntVar(&maxRequestsPerSecond, "mrps", 10, "Max-Requests-Per-Seconds: define the throttle limit in requests per seconds")
 	flag.Parse()
 
-	logger := log.New(os.Stdout, "http: ", log.LstdFlags)
-	logger.Println("Server is starting...")
+	// setup server
+	e := echo.New()
+	e.Use(middleware.Logger())
+	e.HideBanner = true
+	e.StdLogger.Println("starting cosmos-cash-resolver rest server")
+	e.StdLogger.Println("target node is ", listenAddr)
 
-	router := http.NewServeMux()
-	router.Handle("/", index())
-	router.Handle("/healthz", healthz())
+	// start the rest server
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{http.MethodGet},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+	}))
 
-	nextRequestID := func() string {
-		return fmt.Sprintf("%d", time.Now().UnixNano())
-	}
+	e.Use(middleware.RateLimiter(
+		middleware.NewRateLimiterMemoryStore(rate.Limit(maxRequestsPerSecond)),
+	))
 
-	server := &http.Server{
-		Addr:         listenAddr,
-		Handler:      tracing(nextRequestID)(logging(logger)(router)),
-		ErrorLog:     logger,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  15 * time.Second,
-	}
+	// initialize the queues
+	queues = make(map[string]chan string)
+	dispatcherQueue := make(chan Payload)
 
-	done := make(chan bool)
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
+	go func(dq chan Payload) {
+		for {
+			p := <-dq
+			e.StdLogger.Println("sender: ", p.Source )
 
-	go func() {
-		<-quit
-		logger.Println("Server is shutting down...")
-		atomic.StoreInt32(&healthy, 0)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		server.SetKeepAlivesEnabled(false)
-		if err := server.Shutdown(ctx); err != nil {
-			logger.Fatalf("Could not gracefully shutdown the server: %v\n", err)
-		}
-		close(done)
-	}()
-
-	logger.Println("Server is ready to handle requests at", listenAddr)
-	atomic.StoreInt32(&healthy, 1)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		logger.Fatalf("Could not listen on %s: %v\n", listenAddr, err)
-	}
-
-	<-done
-	logger.Println("Server stopped")
-}
-
-func index() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "Hello, World!")
-	})
-}
-
-func healthz() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if atomic.LoadInt32(&healthy) == 1 {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		w.WriteHeader(http.StatusServiceUnavailable)
-	})
-}
-
-func logging(logger *log.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				requestID, ok := r.Context().Value(requestIDKey).(string)
-				if !ok {
-					requestID = "unknown"
-				}
-				logger.Println(requestID, r.Method, r.URL.Path, r.RemoteAddr, r.UserAgent())
-				defer r.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(r.Body)
-				if err != nil {
-					logger.Println(err)
-				}
-				logger.Printf("%s", bodyBytes)
-
-			}()
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-func tracing(nextRequestID func() string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requestID := r.Header.Get("X-Request-Id")
-			if requestID == "" {
-				requestID = nextRequestID()
+			q, exists := queues[p.Source]
+			if !exists {
+				q = make(chan string, 2048)
+				queues[p.Source] = q
 			}
-			ctx := context.WithValue(r.Context(), requestIDKey, requestID)
-			w.Header().Set("X-Request-Id", requestID)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
+
+			q <- string(p.Data)
+
+
+			e.StdLogger.Println("enqueuing event from", p.Source, " - new queue size", len(q))
+		}
+	}(dispatcherQueue)
+
+	e.POST("/wh", func(c echo.Context) error {
+
+		defer c.Request().Body.Close()
+		bodyBytes, err := ioutil.ReadAll(c.Request().Body)
+		if err != nil {
+			e.StdLogger.Println(err)
+		}
+		dispatcherQueue <- Payload{c.Request().Header.Get("sender"), bodyBytes}
+		// track the resolution
+		// atomic.AddUint64(&rt.resolves, 1)
+		return c.JSON(http.StatusOK, map[string]string{})
+	})
+
+	e.GET("/messages/:agent_sender", func(c echo.Context) error {
+		sender := c.Param("agent_sender")
+		q, found := queues[sender]
+		if !found || len(q) == 0{
+			return c.JSON(http.StatusOK, []string{})
+		}
+
+
+		var sb strings.Builder
+		prefix := "["
+		for  len(q)>0 {
+			sb.WriteString(prefix)
+			sb.WriteString(<- q)
+			prefix = ","
+		}
+		sb.WriteString("]")
+
+		// track the resolution
+		// atomic.AddUint64(&rt.resolves, 1)
+		return c.Blob(http.StatusOK, "application/json", []byte(sb.String()))
+
+	})
+	// start the server
+	e.StdLogger.Fatal(e.Start(listenAddr))
 }
 
