@@ -7,7 +7,7 @@ dlv debug ../cmd/elesto-agent/main.go -- start \
 	--api-host localhost:8090 \
 	--inbound-host http@localhost:8091 \
 	--inbound-host-external http@http://localhost:8091 \
-	--webhook-url http://localhost:7082 \
+	--webhook-url http://localhost:7082/wh/bob \
 	--agent-default-label BobAgent \
 	--database-type leveldb \
 	--database-prefix bob \

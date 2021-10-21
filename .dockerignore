@@ -1,0 +1,13 @@
+# Ignore all
+*
+
+# Include
+!go.mod
+!go.sum
+!cmd
+!pkg
+!docker
+!README.md
+!LICENSE
+
+
