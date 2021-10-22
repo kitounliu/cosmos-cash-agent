@@ -11,10 +11,14 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/client/presentproof"
 	de "github.com/hyperledger/aries-framework-go/pkg/controller/command/didexchange"
 	ks "github.com/hyperledger/aries-framework-go/pkg/controller/command/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/controller/command/messaging"
+	presentproofcmd "github.com/hyperledger/aries-framework-go/pkg/controller/command/presentproof"
+	"github.com/hyperledger/aries-framework-go/pkg/didcomm/protocol/decorator"
 )
 
 func request(client *http.Client, method, url string, requestBody io.Reader, val interface{}) {
@@ -67,10 +71,137 @@ func main() {
 		aliceDID   = "did:cosmos:net:cash:alice"
 	)
 
-	bobConnID, _ := DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID)
-	DIDMessaging(bobAgent, aliceAgent, bobConnID)
+	bobConnID, aliceConnID, bobPeerDID, alicePeerDID := DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID)
+	println("Bob connid", bobConnID)
+	println("BOB peerid", bobPeerDID)
+	println("ALICE connid", aliceConnID)
+	println("ALICE peerid", alicePeerDID)
+
+	//time.Sleep(3 * time.Second)
+	//	DIDMessaging(bobAgent, aliceAgent, bobConnID)
+
+	time.Sleep(3 * time.Second)
+	CredentialPresentation(bobAgent, alicePeerDID, bobDID, aliceAgent, bobPeerDID, aliceDID)
 
 	print("yey!")
+}
+
+type VC struct {
+	Context              []string `json:"@context"`
+	Holder               string   `json:"holder"`
+	Id                   string   `json:"@id"`
+	Issuer               string   `json:"issuer"`
+	Type                 []string `json:"type"`
+	VerifiableCredential aCred    `json:"verifiableCredential"`
+}
+
+type aCred struct {
+	Id     string `json:"id"`
+	Holder string `json:"holder"`
+}
+
+func CredentialPresentation(bobAgent, bobPeerDID, bobPublicDID, aliceAgent, alicePeerDID, alicePublicDID string) {
+	// Exchange a presentation through Present Proof protocol
+	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/rest/openapi_demo.md#how-to-exchange-a-presentation-through-the-present-proof-protocol
+	message := `
+**********************
+CredentialPresentation
+**********************
+`
+
+	fmt.Printf("%s", message)
+	var (
+		client = &http.Client{}
+		resp   interface{}
+		reqURL string
+	)
+
+	requestPresentation := presentproof.RequestPresentation{}
+	var (
+		acceptPresentation VC
+		presentation       presentproof.Presentation
+	)
+
+	presentproofRequest := presentproofcmd.SendRequestPresentationArgs{
+		MyDID:               bobPeerDID,
+		TheirDID:            alicePeerDID,
+		RequestPresentation: &requestPresentation,
+	}
+
+	// Request a presentation of a credential
+	var requestResp presentproofcmd.SendRequestPresentationResponse
+
+	reqURL = fmt.Sprint(aliceAgent, "/presentproof/send-request-presentation")
+	println("1. Send a request presentation to ALICE", reqURL)
+	post(client, reqURL, presentproofRequest, &requestResp)
+	pid := requestResp.PIID
+	println(requestResp.PIID)
+
+	// Check the credential request worked
+	reqURL = fmt.Sprint(bobAgent, "/presentproof/actions")
+	println("2. Check the presentation request in BOBs agent", reqURL)
+	get(client, reqURL, resp)
+
+	acceptPresentation = VC{
+		Context: []string{
+			"https://www.w3.org/2018/credentials/v1",
+		},
+		Holder: bobPublicDID,
+		Id:     "user:cred:1",
+		Type: []string{
+			"VerifiablePresentation",
+			"CredentialManagerPresentation",
+		},
+		VerifiableCredential: aCred{
+			"asd",
+			"asd",
+		},
+	}
+	b, err := json.Marshal(acceptPresentation)
+	if err != nil {
+		panic(err)
+	}
+
+	presentation = presentproof.Presentation{
+		PresentationsAttach: []decorator.Attachment{
+			{Data: decorator.AttachmentData{Base64: base64.StdEncoding.EncodeToString([]byte(b))}},
+		},
+	}
+	payload := presentproofcmd.AcceptRequestPresentationArgs{
+		PIID:         pid,
+		Presentation: &presentation,
+	}
+
+	// Accept the presentation request for BOB
+	reqURL = fmt.Sprint(bobAgent, "/presentproof/", pid, "/accept-request-presentation")
+	println("3. Confirm presentation request for BOB", reqURL)
+	post(client, reqURL, payload, resp)
+
+	// NOTE: latency between agents so wait 3 seconds
+	time.Sleep(3 * time.Second)
+
+	// Check the presentation on ALICEs agent
+	reqURL = fmt.Sprint(aliceAgent, "/presentproof/actions")
+	println("4. Get pid from Alices agent", reqURL)
+	get(client, reqURL, resp)
+
+	acceptPresentationPayload := presentproofcmd.AcceptPresentationArgs{
+		PIID:  pid,
+		Names: []string{"demo"},
+	}
+
+	// Accept the presentation on ALICEs agent
+	reqURL = fmt.Sprint(aliceAgent, "/presentproof/", pid, "/accept-presentation")
+	println("5. Accept the presentation by ALICE", reqURL)
+	post(client, reqURL, acceptPresentationPayload, resp)
+
+	// NOTE: latency between agents so wait 3 seconds
+	time.Sleep(3 * time.Second)
+
+	// Check the credential request worked
+	reqURL = fmt.Sprint(aliceAgent, "/verifiable/presentations")
+	println("6. Check the verifiable presentation in ALICEs agent", reqURL)
+	get(client, reqURL, resp)
 }
 
 type genericInviteMsg struct {
@@ -85,6 +216,14 @@ func DIDMessaging(bobAgent, aliceAgent, connID string) {
 	// DID Messaging
 	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/rest/openapi_demo.md#steps-for-custom-message-handling
 
+	message := `
+**********************
+DIDComm Messaging
+**********************
+`
+
+	fmt.Printf("%s", message)
+
 	var (
 		client = &http.Client{}
 		reqURL string
@@ -97,17 +236,19 @@ func DIDMessaging(bobAgent, aliceAgent, connID string) {
 	)
 
 	// Messaging service
-	reqURL = fmt.Sprint(aliceAgent, "/message/register-service")
-	println("7. ALICE creates a service for BOB to send messages", reqURL)
 	createService.Type = "https://didcomm.org/generic/1.0/message"
 	createService.Purpose = []string{"meeting", "appointment", "event"}
 	createService.Name = "generic-invite"
 
+	// Create a service to use for communication
 	var resp interface{}
+	reqURL = fmt.Sprint(aliceAgent, "/message/register-service")
+	println("1. ALICE creates a service for BOB to send messages", reqURL)
 	post(client, reqURL, createService, resp)
 
+	// Check the service has been created
 	reqURL = fmt.Sprint(aliceAgent, "/message/services")
-	println("8. ALICE verifies the service has been created", reqURL)
+	println("2. ALICE verifies the service has been created", reqURL)
 	get(client, reqURL, resp)
 
 	genericMsg.ID = "12123123213213"
@@ -121,14 +262,22 @@ func DIDMessaging(bobAgent, aliceAgent, connID string) {
 	request.ConnectionID = connID
 	request.MessageBody = rawBytes
 
+	// send a message to the previously created service
 	reqURL = fmt.Sprint(bobAgent, "/message/send")
-	println("9. BOB sends a message of type generic invite to ALICE", reqURL)
+	println("3. BOB sends a message of type generic invite to ALICE", reqURL)
 	post(client, reqURL, request, resp)
 }
 
-func DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID string) (string, string) {
+func DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID string) (string, string, string, string) {
 	// DID Exchange
 	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/rest/openapi_demo.md#steps-for-didexchange
+	message := `
+**********************
+DID Exchange
+**********************
+`
+
+	fmt.Printf("%s", message)
 
 	var (
 		client = &http.Client{}
@@ -137,10 +286,11 @@ func DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID string) (string, string)
 	)
 
 	var (
-		keySetRsp   ks.CreateKeySetResponse
-		connection  de.QueryConnectionResponse
-		connections de.QueryConnectionsResponse
-		invite      de.CreateInvitationResponse
+		keySetRsp      ks.CreateKeySetResponse
+		connection     de.QueryConnectionResponse
+		bobconnections de.QueryConnectionsResponse
+		connections    de.QueryConnectionsResponse
+		invite         de.CreateInvitationResponse
 		//implicitInvite de.ImplicitInvitationResponse
 		receiveInvite   de.ReceiveInvitationResponse
 		acceptInvite    de.AcceptInvitationResponse
@@ -198,7 +348,7 @@ func DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID string) (string, string)
 	// Check connection
 	reqURL = fmt.Sprint(bobAgent, "/connections")
 	println("4. BOB lists connections ", reqURL)
-	get(client, reqURL, &connections)
+	get(client, reqURL, &bobconnections)
 
 	reqURL = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID, "/accept-invitation")
 	println("5. BOB accepts the connection", reqURL)
@@ -210,7 +360,7 @@ func DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID string) (string, string)
 	println("6. ALICE lists connections", reqURL)
 	get(client, reqURL, &connections)
 
-	var aliceConnID string
+	var aliceConnID, alicePeerDID, bobPeerDID string
 	for _, c := range connections.Results {
 		if c.State == "requested" {
 			reqURL = fmt.Sprint(aliceAgent, "/connections/", c.ConnectionID, "/accept-request")
@@ -225,12 +375,13 @@ func DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID string) (string, string)
 
 			reqURL = fmt.Sprint(aliceAgent, "/connections/", c.ConnectionID)
 			println("8.2 ALICE get connection", c.ConnectionID)
-			aliceConnID = c.ConnectionID
 			//var accept de.AcceptInvitationResponse
 			get(client, reqURL, &connection)
-			println("8.2 Connection state", connection.Result.State)
+			aliceConnID = connection.Result.ConnectionID
+			alicePeerDID = connection.Result.MyDID
+			bobPeerDID = connection.Result.TheirDID
 		}
 	}
 
-	return receiveInvite.ConnectionID, aliceConnID
+	return receiveInvite.ConnectionID, aliceConnID, bobPeerDID, alicePeerDID
 }
