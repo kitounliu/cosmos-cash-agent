@@ -16,6 +16,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/client/presentproof"
 	de "github.com/hyperledger/aries-framework-go/pkg/controller/command/didexchange"
 	ks "github.com/hyperledger/aries-framework-go/pkg/controller/command/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/controller/command/mediator"
 	"github.com/hyperledger/aries-framework-go/pkg/controller/command/messaging"
 	presentproofcmd "github.com/hyperledger/aries-framework-go/pkg/controller/command/presentproof"
 	"github.com/hyperledger/aries-framework-go/pkg/didcomm/protocol/decorator"
@@ -71,17 +72,22 @@ func main() {
 		aliceDID   = "did:cosmos:net:cash:alice"
 	)
 
+	// DID Exchange between alice and bob
 	bobConnID, aliceConnID, bobPeerDID, alicePeerDID := DIDExchange(bobAgent, bobDID, aliceAgent, aliceDID)
 	println("Bob connid", bobConnID)
 	println("BOB peerid", bobPeerDID)
 	println("ALICE connid", aliceConnID)
 	println("ALICE peerid", alicePeerDID)
 
-	//time.Sleep(3 * time.Second)
-	//	DIDMessaging(bobAgent, aliceAgent, bobConnID)
+	time.Sleep(3 * time.Second)
+
+	// CredentialPresentation from alice to bob
+	CredentialPresentation(bobAgent, alicePeerDID, bobDID, aliceAgent, bobPeerDID, aliceDID)
 
 	time.Sleep(3 * time.Second)
-	CredentialPresentation(bobAgent, alicePeerDID, bobDID, aliceAgent, bobPeerDID, aliceDID)
+
+	// Mediator from Carl to Dave using Alice as a mediator
+	DIDMediator()
 
 	print("yey!")
 }
@@ -98,6 +104,115 @@ type VC struct {
 type aCred struct {
 	Id     string `json:"id"`
 	Holder string `json:"holder"`
+}
+
+func DIDMediator() {
+	// DIDExchange and DIDComm through a mediator
+	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/rest/openapi_demo.md#steps-for-didexchange-through-didcomm-routers
+
+	message := `
+**********************
+DIDExchange Mediator
+**********************
+`
+
+	fmt.Printf("%s", message)
+	var (
+		aliceAgent = "http://localhost:7090"
+		aliceDID   = "did:cosmos:net:cash:alice"
+		carlAgent  = "http://localhost:10090"
+		carlDID    = "did:cosmos:net:cash:carl"
+		daveAgent  = "http://localhost:11090"
+		daveDID    = "did:cosmos:net:cash:dave"
+	)
+	var (
+		client = &http.Client{}
+		resp   interface{}
+		reqURL string
+	)
+
+	// Alice's agent will be used as a Mediator
+
+	// Set up a connection from Carl to Alice
+	carlConnID, aliceCarlConnID, carlPeerDID, aliceCarlPeerDID := DIDExchange(carlAgent, carlDID, aliceAgent, aliceDID)
+
+	// wait for 3 seconds to allow Carls connection to finish
+	time.Sleep(3 * time.Second)
+
+	// Set up a connection from Dave to Alice
+	daveConnID, aliceDaveConnID, davePeerDID, aliceDavePeerDID := DIDExchange(daveAgent, daveDID, aliceAgent, aliceDID)
+
+	println(carlConnID, aliceCarlConnID, carlPeerDID, aliceCarlPeerDID)
+	println(daveConnID, aliceDaveConnID, davePeerDID, aliceDavePeerDID)
+
+	// wait for 3 seconds to allow Carls connection to finish
+	time.Sleep(3 * time.Second)
+
+	type registerRouteReq struct {
+		ConnectionID string `json:"connectionID"`
+	}
+
+	reqURL = fmt.Sprint(carlAgent, "/mediator/register")
+	println("3. Carl registers a mediator", reqURL)
+	post(client, reqURL, registerRouteReq{ConnectionID: carlConnID}, &resp)
+
+	// wait for 3 seconds to allow Carls connection to finish
+	time.Sleep(3 * time.Second)
+
+	// Check the connection request worked
+	reqURL = fmt.Sprint(carlAgent, "/mediator/connections")
+	println("2. Check the mediator connection on Carls agent", reqURL)
+	get(client, reqURL, resp)
+
+	// wait for 3 seconds to allow Carls connection to finish
+	time.Sleep(3 * time.Second)
+
+	reqURL = fmt.Sprint(daveAgent, "/mediator/register")
+	println("3. Dave registers a mediator", reqURL)
+	post(client, reqURL, registerRouteReq{ConnectionID: daveConnID}, &resp)
+
+	// wait for 3 seconds to allow Daves connection to finish
+	time.Sleep(3 * time.Second)
+
+	mediatorConnResp := &mediator.ConnectionsResponse{}
+
+	// Check the connection request worked
+	reqURL = fmt.Sprint(daveAgent, "/mediator/connections")
+	println("2. Check the mediator connection on Daves agent", reqURL)
+	get(client, reqURL, mediatorConnResp)
+
+	time.Sleep(3 * time.Second)
+	var invite de.CreateInvitationResponse
+	// create a connnection invite NOTE: connection id is used and no public did is passed
+	reqURL = fmt.Sprint(carlAgent, "/connections/create-invitation?label=CarlAgent&router_connection_id=", carlConnID)
+	println("3. Carl creates an invitation", reqURL)
+	post(client, reqURL, nil, &invite)
+
+	time.Sleep(3 * time.Second)
+
+	// create a connnection invite NOTE: connection id is used and no public did is passed
+	reqURL = fmt.Sprint(daveAgent, "/connections/create-invitation?label=DaveAgent&router_connection_id=", daveConnID)
+	println("3. Dave creates an invitation", reqURL)
+	post(client, reqURL, nil, &resp)
+
+	// wait for 3 seconds to allow Carls connection to finish
+	time.Sleep(3 * time.Second)
+
+	daveConnID, carlDaveConnID, davePeerDID, carlDavePeerDID := DIDExchangeMediator(daveAgent, daveDID, carlAgent, carlDID, invite)
+	println(daveConnID, carlDaveConnID, davePeerDID, carlDavePeerDID)
+
+	// wait for 3 seconds to allow Carls connection to finish
+	time.Sleep(3 * time.Second)
+
+	println(daveAgent, carlAgent, daveConnID)
+
+	// Use carls agent and the connection ID of the mediator connection
+	DIDMessaging(carlAgent, daveAgent, carlDaveConnID)
+
+	// wait for 3 seconds to allow Carls connection to finish
+	time.Sleep(3 * time.Second)
+
+	DIDMessaging(daveAgent, carlAgent, daveConnID)
 }
 
 func CredentialPresentation(bobAgent, bobPeerDID, bobPublicDID, aliceAgent, alicePeerDID, alicePublicDID string) {
@@ -262,6 +377,68 @@ DIDComm Messaging
 	request.ConnectionID = connID
 	request.MessageBody = rawBytes
 
+	// NOTE: latency between agents so wait 3 seconds
+	time.Sleep(3 * time.Second)
+
+	// send a message to the previously created service
+	reqURL = fmt.Sprint(bobAgent, "/message/send")
+	println("3. BOB sends a message of type generic invite to ALICE", reqURL)
+	post(client, reqURL, request, resp)
+}
+
+func DIDMessagingHTTP(bobAgent, aliceAgent, connID string) {
+	// DID Messaging
+	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/rest/openapi_demo.md#steps-for-custom-message-handling
+
+	message := `
+**********************
+DIDComm Messaging
+**********************
+`
+
+	fmt.Printf("%s", message)
+
+	var (
+		client = &http.Client{}
+		reqURL string
+	)
+
+	var (
+		createService messaging.RegisterMsgSvcArgs
+		genericMsg    genericInviteMsg
+		request       messaging.SendNewMessageArgs
+	)
+
+	// Messaging service
+	createService.Type = "https://didcomm.org/http-over-didcomm/1.0/message"
+	createService.Purpose = []string{"meeting", "appointment", "event"}
+	createService.Name = "generic-invite-http"
+
+	// Create a service to use for communication
+	var resp interface{}
+	reqURL = fmt.Sprint(aliceAgent, "/http-over-didcomm/register")
+	println("1. ALICE creates a service for BOB to send messages", reqURL)
+	post(client, reqURL, createService, resp)
+
+	// Check the service has been created
+	reqURL = fmt.Sprint(aliceAgent, "/message/services")
+	println("2. ALICE verifies the service has been created", reqURL)
+	get(client, reqURL, resp)
+
+	genericMsg.ID = "12123123213213"
+	genericMsg.Type = "https://didcomm.org/http-over-didcomm/1.0/message"
+	genericMsg.Purpose = []string{"meeting"}
+	genericMsg.Message = "fight me you coward http"
+	genericMsg.From = "Somebody"
+
+	rawBytes, _ := json.Marshal(genericMsg)
+
+	request.ConnectionID = connID
+	request.MessageBody = rawBytes
+
+	// NOTE: latency between agents so wait 3 seconds
+	time.Sleep(3 * time.Second)
+
 	// send a message to the previously created service
 	reqURL = fmt.Sprint(bobAgent, "/message/send")
 	println("3. BOB sends a message of type generic invite to ALICE", reqURL)
@@ -359,6 +536,98 @@ DID Exchange
 	reqURL = fmt.Sprint(aliceAgent, "/connections")
 	println("6. ALICE lists connections", reqURL)
 	get(client, reqURL, &connections)
+
+	var aliceConnID, alicePeerDID, bobPeerDID string
+	for _, c := range connections.Results {
+		if c.State == "requested" {
+			reqURL = fmt.Sprint(aliceAgent, "/connections/", c.ConnectionID, "/accept-request")
+			println("7. ALICE accepts the connection request (replied from bob)", reqURL)
+			post(client, reqURL, nil, &confirmExchange)
+
+			reqURL = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID)
+			println("8.1 BOB get connection", receiveInvite.ConnectionID)
+			//var accept de.AcceptInvitationResponse
+			get(client, reqURL, &connection)
+			println("8.1 Connection state", connection.Result.State)
+
+			reqURL = fmt.Sprint(aliceAgent, "/connections/", c.ConnectionID)
+			println("8.2 ALICE get connection", c.ConnectionID)
+			//var accept de.AcceptInvitationResponse
+			get(client, reqURL, &connection)
+			aliceConnID = connection.Result.ConnectionID
+			alicePeerDID = connection.Result.MyDID
+			bobPeerDID = connection.Result.TheirDID
+		}
+	}
+
+	return receiveInvite.ConnectionID, aliceConnID, bobPeerDID, alicePeerDID
+}
+
+func DIDExchangeMediator(bobAgent, bobDID, aliceAgent, aliceDID string, invite de.CreateInvitationResponse) (string, string, string, string) {
+	// DID Exchange
+	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/rest/openapi_demo.md#steps-for-didexchange
+	message := `
+**********************
+DID Exchange
+**********************
+`
+
+	fmt.Printf("%s", message)
+
+	var (
+		client = &http.Client{}
+		reqURL string
+	)
+
+	var (
+		keySetRsp      ks.CreateKeySetResponse
+		connection     de.QueryConnectionResponse
+		bobconnections de.QueryConnectionsResponse
+		connections    de.QueryConnectionsResponse
+
+		//implicitInvite de.ImplicitInvitationResponse
+		receiveInvite   de.ReceiveInvitationResponse
+		acceptInvite    de.AcceptInvitationResponse
+		confirmExchange de.ExchangeResponse
+	)
+
+	println("DID Exchange")
+
+	println("ALICE", aliceDID)
+	println("BOB  ", bobDID)
+	routerID := fmt.Sprint(rand.Int())
+	println("router id", routerID)
+
+	v, _ := base64.StdEncoding.DecodeString(keySetRsp.PublicKey)
+	println("keyID", keySetRsp.KeyID)
+	println("keyPub (base64)", keySetRsp.PublicKey)
+	println("keyPub (hex)", hex.EncodeToString(v))
+
+	reqURL = fmt.Sprint(bobAgent, "/connections/receive-invitation")
+	println("2. BOB receive the invitation", reqURL)
+	post(client, reqURL, invite.Invitation, &receiveInvite)
+
+	// Check connection
+	reqURL = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID)
+	println("3. BOB inspect the invitation", reqURL)
+	get(client, reqURL, &connection)
+
+	// Check connection
+	reqURL = fmt.Sprint(bobAgent, "/connections")
+	println("4. BOB lists connections ", reqURL)
+	get(client, reqURL, &bobconnections)
+
+	reqURL = fmt.Sprint(bobAgent, "/connections/", receiveInvite.ConnectionID, "/accept-invitation")
+	println("5. BOB accepts the connection", reqURL)
+	//var accept de.AcceptInvitationResponse
+	post(client, reqURL, nil, &acceptInvite)
+
+	// Check connection
+	reqURL = fmt.Sprint(aliceAgent, "/connections")
+	println("6. ALICE lists connections", reqURL)
+	get(client, reqURL, &connections)
+
+	time.Sleep(3 * time.Second)
 
 	var aliceConnID, alicePeerDID, bobPeerDID string
 	for _, c := range connections.Results {

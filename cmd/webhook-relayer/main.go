@@ -17,23 +17,21 @@ const (
 )
 
 var (
-	listenAddr string
-	healthy    int32
-	messageBufferSize int
+	listenAddr           string
+	healthy              int32
+	messageBufferSize    int
 	maxRequestsPerSecond int
-	queues     map[string]chan string
+	queues               map[string]chan string
 )
-
 
 type Payload struct {
 	Source string
-	Data  []byte
-
+	Data   []byte
 }
 
 func main() {
 	flag.StringVar(&listenAddr, "listen", ":2110", "server listen address")
-	flag.IntVar(&maxRequestsPerSecond, "x", 10, "Max-Requests-Per-Seconds: define the throttle limit in requests per seconds")
+	flag.IntVar(&maxRequestsPerSecond, "x", 50, "Max-Requests-Per-Seconds: define the throttle limit in requests per seconds")
 	flag.IntVar(&messageBufferSize, "n", 4096, "Max number of messages that are kept per agent")
 	flag.Parse()
 
@@ -44,7 +42,6 @@ func main() {
 	e.StdLogger.Println("starting cosmos-cash-agent-relayer rest server")
 	e.StdLogger.Println("listen address is ", listenAddr)
 	e.StdLogger.Println("Max messages for agent ", messageBufferSize)
-
 
 	// start the rest server
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -64,7 +61,7 @@ func main() {
 	go func(dq chan Payload) {
 		for {
 			p := <-dq
-			e.StdLogger.Println("sender: ", p.Source )
+			e.StdLogger.Println("sender: ", p.Source)
 			q, exists := queues[p.Source]
 			if !exists {
 				q = make(chan string, messageBufferSize)
@@ -98,14 +95,14 @@ func main() {
 	e.GET("/messages/:agent", func(c echo.Context) error {
 		agent := c.Param("agent")
 		q, found := queues[agent]
-		if !found || len(q) == 0{
+		if !found || len(q) == 0 {
 			return c.JSON(http.StatusOK, []string{})
 		}
 		var sb strings.Builder
 		prefix := "["
-		for len(q)>0 {
+		for len(q) > 0 {
 			sb.WriteString(prefix)
-			sb.WriteString(<- q)
+			sb.WriteString(<-q)
 			prefix = ","
 		}
 		sb.WriteString("]")
@@ -117,4 +114,3 @@ func main() {
 	// start the server
 	e.StdLogger.Fatal(e.Start(listenAddr))
 }
-
