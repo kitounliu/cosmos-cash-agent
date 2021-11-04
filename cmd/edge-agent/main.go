@@ -6,6 +6,8 @@ import (
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
 	"github.com/allinbits/cosmos-cash-agent/pkg/ui"
+	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/chain"
+	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/ssi"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
@@ -39,10 +41,13 @@ func main() {
 
 	// aries wallet creation
 	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/vc_wallet.md
+	agent := ssi.Agent(cfg.ControllerName, "slidelock")
+	go agent.Run(cfg.RuntimeState)
 
 	// cosmos-sdk keystore
 	// https://github.com/cosmos/cosmos-sdk/blob/master/client/keys/add.go
-
+	wallet := chain.Client(cfg)
+	go wallet.Run(cfg.RuntimeState)
 
 	// render the app
 	ui.Render(cfg.RuntimeState)
@@ -81,9 +86,9 @@ func setup() (cfg config.EdgeConfigSchema) {
 		helpers.LoadJson(agentCfg, &cfg)
 	}
 	// load app state
+	cfg.RuntimeState = config.NewState()
 	appState, exists := config.GetAppData("state.json")
 	if !exists {
-		cfg.RuntimeState = config.NewState()
 		helpers.WriteJson(appState, cfg.RuntimeState)
 	} else {
 		helpers.LoadJson(appState, cfg.RuntimeState)

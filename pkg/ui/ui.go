@@ -116,7 +116,7 @@ func Render(appState *config.State) {
 
 	go func() {
 		for {
-			n := <-state.Notifications
+			n := <-state.Msgs.Notification
 			g.Update(func(g *gocui.Gui) error {
 				v, err := g.View(name(footer))
 				if err != nil {
