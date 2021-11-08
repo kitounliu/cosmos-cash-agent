@@ -95,5 +95,6 @@ func setup() (cfg config.EdgeConfigSchema) {
 	} else {
 		helpers.LoadJson(appState, cfg.RuntimeState)
 	}
+	cfg.RuntimeMsgs = config.NewMsgHub()
 	return
 }
