@@ -14,6 +14,8 @@ func NewEdgeConfigSchema(controllerName string) EdgeConfigSchema {
 		ChainID:         "cosmoscash-testnet",
 		CloudAgentWsURL: "https://ws.router.cosmos-cash.app.beta.starport.cloud",
 		ControllerDidID: uuid.New().String(),
+		// runtime
+		RuntimeMsgs: NewMsgHub(),
 	}
 }
 
@@ -25,7 +27,8 @@ type EdgeConfigSchema struct {
 	CloudAgentWsURL string `json:"cloud_agent_ws_url"`
 
 	// Runtime
-	RuntimeState *State `json:"-"`
+	RuntimeState *State  `json:"-"`
+	RuntimeMsgs  *MsgHub `json:"-"`
 }
 
 func GetAppData(subPath ...string) (string, bool) {

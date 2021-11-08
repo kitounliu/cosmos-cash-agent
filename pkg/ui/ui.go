@@ -88,10 +88,12 @@ func label(id int) string {
 
 var (
 	state *config.State
+	hub *config.MsgHub
 )
 
-func Render(appState *config.State) {
+func Render(appState *config.State, msgHub *config.MsgHub) {
 	state = appState
+	hub = msgHub
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
 		log.Panicln(err)
@@ -116,7 +118,7 @@ func Render(appState *config.State) {
 
 	go func() {
 		for {
-			n := <-state.Msgs.Notification
+			n := <-hub.Notification
 			g.Update(func(g *gocui.Gui) error {
 				v, err := g.View(name(footer))
 				if err != nil {

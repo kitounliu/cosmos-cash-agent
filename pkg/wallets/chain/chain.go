@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 )
 
 type ChainClient struct {
@@ -26,7 +27,7 @@ func Client(cfg config.EdgeConfigSchema, password string) ChainClient {
 		WithKeyringDir(keyringData)
 
 	if !exists {
-		initWallet(initClientCtx, cfg, password)
+		//initWallet(initClientCtx, cfg, password)
 	}
 	log.Infoln("opening existing client for", cfg.ControllerName)
 
@@ -81,10 +82,19 @@ func initWallet(ctx client.Context, cfg config.EdgeConfigSchema, password string
 		ki.GetAddress().String(),
 	)
 
-	tx.GenerateOrBroadcastTxCLI(ctx, cmd.Flags(), msg)
+	fs := pflag.FlagSet{}
+
+
+	if err := tx.GenerateOrBroadcastTxCLI(ctx, &fs, msg); err != nil {
+		log.Error(err)
+	}
+
+	log.Infoln("token wallet initialization completed")
+
+
 
 }
 
-func (cc *ChainClient) Run(state *config.State) {
+func (cc *ChainClient) Run(state *config.State, hub *config.MsgHub) {
 
 }

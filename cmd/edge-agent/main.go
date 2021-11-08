@@ -39,18 +39,20 @@ func main() {
 
 	cfg := setup()
 
+	pwd := "a_password"
+
 	// aries wallet creation
 	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/vc_wallet.md
-	agent := ssi.Agent(cfg.ControllerName, "slidelock")
-	go agent.Run(cfg.RuntimeState)
+	agent := ssi.Agent(cfg.ControllerName, pwd)
+	go agent.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
 
 	// cosmos-sdk keystore
 	// https://github.com/cosmos/cosmos-sdk/blob/master/client/keys/add.go
-	wallet := chain.Client(cfg)
-	go wallet.Run(cfg.RuntimeState)
+	wallet := chain.Client(cfg, pwd)
+	go wallet.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
 
 	// render the app
-	ui.Render(cfg.RuntimeState)
+	ui.Render(cfg.RuntimeState, cfg.RuntimeMsgs)
 }
 
 // setup creates the app config folder
