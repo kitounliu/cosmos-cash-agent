@@ -3,6 +3,12 @@ PACKAGES=$(shell go list ./...)
 BUILD_FOLDER = build
 APP_VERSION = $(git describe --tags --always)
 
+clean:
+	rm -rf ~/.config/cosmos-cash-agent
+
+run-dev:
+	go run cmd/edge-agent/main.go
+
 ###############################################################################
 ###                           DOCKER                                        ###
 ###############################################################################

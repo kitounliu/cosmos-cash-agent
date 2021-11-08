@@ -18,7 +18,7 @@ func NewMenuWidget(buttons ...int) *MenuWidget {
 	bY := 0
 	for _, i := range buttons {
 		b := NewButtonWidget(i, bX, bY, func(g *gocui.Gui, v *gocui.View) (err error) {
-			state.Msgs.Notification <- fmt.Sprintf("clicked view %v, button %v: %v", v.Name(), i, label(i))
+			hub.Notification <- fmt.Sprintf("clicked view %v, button %v: %v", v.Name(), i, label(i))
 			_, err = g.SetCurrentView(v.Name())
 			if err != nil {
 				return
