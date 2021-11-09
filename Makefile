@@ -7,7 +7,7 @@ clean:
 	rm -rf ~/.config/cosmos-cash-agent
 
 run-dev:
-	go run cmd/edge-agent/main.go
+	CASH_ENV=live go run cmd/edge-agent/main.go
 
 ###############################################################################
 ###                           DOCKER                                        ###

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
-	"github.com/allinbits/cosmos-cash-agent/pkg/ui"
 	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/chain"
 	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/ssi"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
+	"sync"
 )
 
 func init() {
@@ -18,17 +18,17 @@ func init() {
 	log.SetFormatter(&log.JSONFormatter{})
 	// You could set this to any `io.Writer` such as a file
 	file, err := os.OpenFile("_private/app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err == nil {
-		log.SetOutput(file)
-	} else {
-		// Output to stdout instead of the default stderr
-		// Can be any io.Writer, see below for File example
-		log.SetOutput(os.Stderr)
-		log.Info("Failed to log to file, using default stderr")
+	if err != nil {
+		panic("cannot write log file")
 	}
+	log.SetOutput(file)
 
 	// Only log the warning severity or above.
-	log.SetLevel(log.WarnLevel)
+	log.SetLevel(log.DebugLevel)
+	// separate executions
+	log.Infoln("================== =========== ================== ")
+	log.Infoln("================== NEW SESSION ================== ")
+	log.Infoln("================== =========== ================== ")
 }
 
 func main() {
@@ -52,7 +52,10 @@ func main() {
 	go wallet.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
 
 	// render the app
-	ui.Render(cfg.RuntimeState, cfg.RuntimeMsgs)
+	//ui.Render(cfg.RuntimeState, cfg.RuntimeMsgs)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	wg.Wait()
 }
 
 // setup creates the app config folder
