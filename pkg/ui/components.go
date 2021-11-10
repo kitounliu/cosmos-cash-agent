@@ -71,9 +71,9 @@ func (w *ListWidget) Layout(g *gocui.Gui) error {
 	if _, err := g.SetViewOnTop(w.name); err != nil {
 		return err
 	}
-	//if err := g.SetKeybinding(w.name, gocui.KeyEnter, gocui.ModNone, w.handler); err != nil {
-	//	return err
-	//}
+	if err := g.SetKeybinding(w.name, gocui.KeyEnter, gocui.ModNone, w.handler); err != nil {
+		return err
+	}
 	v.Clear()
 	for _, e := range w.items {
 		fmt.Fprintln(v, e)

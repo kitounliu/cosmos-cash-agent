@@ -30,6 +30,11 @@ type ChainClient struct {
 	qry grpc.ClientConn
 }
 
+type KeyData struct {
+	Address string `json:"address"`
+	Armor   string `json:"armor"`
+}
+
 func Client(cfg config.EdgeConfigSchema, password string) *ChainClient {
 	log.Infoln("initializing client")
 	chainData, _ := config.GetAppData("chain")
@@ -38,12 +43,12 @@ func Client(cfg config.EdgeConfigSchema, password string) *ChainClient {
 
 	armorPath, exists := config.GetAppData("account_armor.json")
 	if !exists {
-		_, addr, err := kr.NewMnemonic(cfg.ControllerName, keyring.English, sdk.GetConfig().GetFullBIP44Path(), "", hd.Secp256k1)
+		info, mnemonic, err := kr.NewMnemonic(cfg.ControllerName, keyring.English, sdk.GetConfig().GetFullBIP44Path(), "", hd.Secp256k1)
 		if err != nil {
 			log.Fatalln("error creating new key", err)
 		}
 		log.WithFields(log.Fields{
-			"mnemonic": addr,
+			"mnemonic": mnemonic,
 		}).Infoln("created new key for", cfg.ControllerName)
 		armorData, err := kr.ExportPrivKeyArmor(cfg.ControllerName, password)
 		if err != nil {
@@ -51,14 +56,14 @@ func Client(cfg config.EdgeConfigSchema, password string) *ChainClient {
 		}
 
 		helpers.WriteJson(armorPath, map[string]interface{}{
-			"address": addr,
+			"address": info.GetAddress().String(),
 			"armor":   armorData,
 		})
 		log.Infoln("exported armored private key to", armorPath)
 	} else {
-		var accountData map[string]string
-		helpers.LoadJson(armorPath, accountData)
-		err := kr.ImportPrivKey(cfg.ControllerName, accountData["armor"], password)
+		var accountData KeyData
+		helpers.LoadJson(armorPath, &accountData)
+		err := kr.ImportPrivKey(cfg.ControllerName, accountData.Armor, password)
 		if err != nil {
 			log.Fatalln("error loading private key", err)
 		}
@@ -112,8 +117,8 @@ func Client(cfg config.EdgeConfigSchema, password string) *ChainClient {
 			for i := 0; i < 3; i++ {
 				time.Sleep(6 * time.Second)
 				if cc.Balance(ki.GetAddress().String()).IsPositive() {
-					break
 					log.Infoln("got a positive balance")
+					break
 				}
 			}
 		}

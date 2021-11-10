@@ -1,28 +1,60 @@
 package ssi
 
 import (
+	"net/http"
+
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
-	"github.com/hyperledger/aries-framework-go/pkg/framework/aries"
+	"github.com/hyperledger/aries-framework-go/pkg/didcomm/transport"
+	arieshttp "github.com/hyperledger/aries-framework-go/pkg/didcomm/transport/http"
+	"github.com/hyperledger/aries-framework-go/pkg/didcomm/transport/ws"
+	"github.com/hyperledger/aries-framework-go/pkg/vdr/httpbinding"
 	"github.com/hyperledger/aries-framework-go/pkg/wallet"
+
+	"github.com/hyperledger/aries-framework-go/pkg/framework/aries"
+	"github.com/hyperledger/aries-framework-go/pkg/framework/context"
+
 	log "github.com/sirupsen/logrus"
 )
-
 
 var (
 	w *wallet.Wallet
 )
 
-type CredentialsWallet struct {
-	w *wallet.Wallet
+type SSIWallet struct {
+	w   *wallet.Wallet
+	ctx *context.Provider
 }
 
-func Agent(name, pass string) *CredentialsWallet {
+func Agent(name, pass, resolverURL string) *SSIWallet {
+	// datastore
+	provider := mem.NewProvider()
+	stateProvider := mem.NewProvider()
+
+	// ws inbound, outbound
+	var transports []transport.OutboundTransport
+	outboundHTTP, err := arieshttp.NewOutbound(arieshttp.WithOutboundHTTPClient(&http.Client{}))
+	transports = append(transports, outboundHTTP)
+	outboundWs := ws.NewOutbound()
+	transports = append(transports, outboundWs)
+
+	// resolver
+	httpVDR, err := httpbinding.New(resolverURL,
+		httpbinding.WithAccept(func(method string) bool { return method == "cosmos" }))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// create framework
 	framework, err := aries.New(
+		aries.WithStoreProvider(provider),
+		aries.WithProtocolStateStoreProvider(stateProvider),
+		aries.WithOutboundTransports(transports...),
+		aries.WithTransportReturnRoute("all"),
+		aries.WithVDR(httpVDR),
 		aries.WithVDR(CosmosVDR{}),
 	)
-	if err != nil {
-		panic(err)
-	}
 	// get the context
 	ctx, err := framework.Context()
 	if err != nil {
@@ -38,17 +70,16 @@ func Agent(name, pass string) *CredentialsWallet {
 	if err != nil {
 		panic(err)
 	}
-	return &CredentialsWallet{w: w}
-
+	return &SSIWallet{w: w, ctx: ctx}
 }
 
 // Run should be called as a goroutine, the parameters are:
 // State: the local state of the app that should be stored on disk
 // Hub: is the messages where the 3 components (ui, wallet, agent) can exchange messages
-func (cw *CredentialsWallet) Run(state *config.State, hub *config.MsgHub) {
+func (cw *SSIWallet) Run(state *config.State, hub *config.MsgHub) {
 	// here an example how to listen to internal messages
 	for {
-		m := <- hub.AgentWalletIn
+		m := <-hub.AgentWalletIn
 		log.Infoln("received message", m)
 	}
 	// here an example how to send the messages to the wallet
