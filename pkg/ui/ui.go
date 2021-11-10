@@ -88,7 +88,7 @@ func label(id int) string {
 
 var (
 	state *config.State
-	hub *config.MsgHub
+	hub   *config.MsgHub
 )
 
 func Render(appState *config.State, msgHub *config.MsgHub) {
@@ -108,13 +108,12 @@ func Render(appState *config.State, msgHub *config.MsgHub) {
 		balancesMenuItem,
 		credentialsMenuItem,
 	)
-	statuBar := NewStatusbarWidget()
+	statuBar := NewTerminalWidget()
 
 	// main views
 	dash := NewDashboardView()
 
 	g.SetManager(menu, statuBar, dash)
-
 
 	go func() {
 		for {

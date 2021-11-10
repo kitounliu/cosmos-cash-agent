@@ -54,34 +54,3 @@ func (w *MenuWidget) Layout(g *gocui.Gui) error {
 	}
 	return nil
 }
-
-type StatusbarWidget struct {
-	name string
-	val  string
-}
-
-func NewStatusbarWidget() *StatusbarWidget {
-	return &StatusbarWidget{name: name(footer), val: "this is the status bar"}
-}
-
-func (w *StatusbarWidget) SetVal(val string) error {
-	w.val = val
-	return nil
-}
-
-func (w *StatusbarWidget) Val() string {
-	return w.val
-}
-
-func (w *StatusbarWidget) Layout(g *gocui.Gui) error {
-	maxX, maxY := g.Size()
-	_, err := g.SetView(w.name, 0, maxY-footerHeight, maxX-1, maxY-1)
-	if err != nil && err != gocui.ErrUnknownView {
-		return err
-	}
-	// v.Clear()
-	//rep := int(float64(maxX))
-	//fmt.Fprint(v, strings.Repeat("▒", rep))\
-	// fmt.Fprint(v, w.val)
-	return nil
-}
