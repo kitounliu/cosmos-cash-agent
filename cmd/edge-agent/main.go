@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
+	"github.com/allinbits/cosmos-cash-agent/pkg/ui"
 	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/chain"
 	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/ssi"
 	log "github.com/sirupsen/logrus"
@@ -17,7 +18,7 @@ func init() {
 	// Log as JSON instead of the default ASCII formatter.
 	log.SetFormatter(&log.JSONFormatter{})
 	// You could set this to any `io.Writer` such as a file
-	file, err := os.OpenFile("_private/app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile("./_private/app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		panic("cannot write log file")
 	}
@@ -41,9 +42,11 @@ func main() {
 
 	pwd := "a_password"
 
+	httpResolver := "http://localhost:2109/identifier/aries/"
+
 	// aries wallet creation
 	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/vc_wallet.md
-	agent := ssi.Agent(cfg.ControllerName, pwd)
+	agent := ssi.Agent(cfg.ControllerName, pwd, httpResolver)
 	go agent.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
 
 	// cosmos-sdk keystore
@@ -52,7 +55,7 @@ func main() {
 	go wallet.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
 
 	// render the app
-	//ui.Render(cfg.RuntimeState, cfg.RuntimeMsgs)
+	ui.Render(cfg.RuntimeState, cfg.RuntimeMsgs)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	wg.Wait()
@@ -84,7 +87,7 @@ func setup() (cfg config.EdgeConfigSchema) {
 		if name == "" {
 			panic("too bad that you don't have a name :(")
 		}
-		fmt.Println("Great", name, "! strap-on and let's go!")
+		fmt.Println("Great", name, "! strap-in and let's go!")
 		cfg = config.NewEdgeConfigSchema(name)
 		helpers.WriteJson(agentCfg, cfg)
 	} else {
