@@ -6,7 +6,6 @@ import (
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
 	"github.com/allinbits/cosmos-cash-agent/pkg/ui"
-	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/chain"
 	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/ssi"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -51,11 +50,11 @@ func main() {
 
 	// cosmos-sdk keystore
 	// https://github.com/cosmos/cosmos-sdk/blob/master/client/keys/add.go
-	wallet := chain.Client(cfg, pwd)
-	go wallet.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
+	//wallet := chain.Client(cfg, pwd)
+	//go wallet.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
 
 	// render the app
-	ui.Render(cfg.RuntimeState, cfg.RuntimeMsgs)
+	ui.Render(cfg)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	wg.Wait()
