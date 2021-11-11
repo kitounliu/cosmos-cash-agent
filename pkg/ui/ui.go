@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -31,6 +32,8 @@ func executeCmd() {
 }
 
 func Render(cfg config.EdgeConfigSchema) {
+
+	appCfg = cfg
 
 	myApp := app.New()
 	myWindow := myApp.NewWindow(cfg.ControllerName)
@@ -103,21 +106,74 @@ func getMessagesTab() *container.TabItem {
 
 func getDashboardTab() *container.TabItem {
 
-	main := widget.NewLabel("Dashboard")
+	main := container.NewVBox(
+
+		widget.NewLabel(fmt.Sprintf("Wallet owner: %s", appCfg.ControllerName)),
+		widget.NewLabel(fmt.Sprintf("Wallet DID ID: did:cosmos:net:%s:%s", appCfg.ChainID, appCfg.ControllerDidID)),
+		)
+
 
 	return container.NewTabItem("Dashboard", main)
 }
 
 func getCredentialsTab() *container.TabItem {
 
-	main := widget.NewLabel("Credentials")
+	listData := []string{
+		"User Credential",
+		"User Credential",
+		"eIDAS credential",
+	}
+
+	list := widget.NewList(
+		func() int {
+			return len(listData)
+		},
+		func() fyne.CanvasObject {
+			return widget.NewLabel("")
+		},
+		func(id widget.ListItemID, o fyne.CanvasObject) {
+			o.(*widget.Label).SetText(listData[id])
+		})
+
+	msgPanel := container.NewVBox()
+	msgScroll := container.NewScroll(msgPanel)
+
+
+
+	body := container.NewHSplit(list, msgScroll)
+	main := container.New(layout.NewMaxLayout(), body)
+
+
 
 	return container.NewTabItem("Credentials", main)
 }
 
 func getBalancesTab() *container.TabItem {
 
-	main := widget.NewLabel("Balances")
+	listData := []string{
+		"sEURO: 20",
+		"wEURO: 31",
+		"tEURO: 0.13",
+	}
+
+	list := widget.NewList(
+		func() int {
+			return len(listData)
+		},
+		func() fyne.CanvasObject {
+			return widget.NewLabel("")
+		},
+		func(id widget.ListItemID, o fyne.CanvasObject) {
+			o.(*widget.Label).SetText(listData[id])
+		})
+
+	msgPanel := container.NewVBox()
+	msgScroll := container.NewScroll(msgPanel)
+
+
+
+	body := container.NewHSplit(list, msgScroll)
+	main := container.New(layout.NewMaxLayout(), body)
 
 	return container.NewTabItem("Balances", main)
 }
