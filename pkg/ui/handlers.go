@@ -41,18 +41,27 @@ func dispatcher(in chan config.AppMsg) {
 
 }
 
-func balancesClick(iID widget.ListItemID) {
+// balancesSelected gets triggered when an item is selected in the balance list
+func balancesSelected(iID widget.ListItemID) {
 	v, _ := balances.GetValue(iID)
 	appCfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgChainOfTrust, v)
 }
 
+// credentialsSelected gets triggered when an item is selected in the credential list
 func credentialsSelected(iID widget.ListItemID) {
 	v, _ := credentials.GetValue(iID)
 	log.Debugln("credential selected", v)
 	appCfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgPublicVCData, v)
 }
 
-// This get executed every time the text input field get executed
+// contactSelected gets triggered when an item is selected in the contact list
+func contactSelected(iID widget.ListItemID) {
+	// TODO what should happen when a contact is selected?
+	// the messages should be sent to that contact
+	// the payments should be sent to that contact
+}
+
+// executeCmd get executed every time the text input field get executed
 func executeCmd() {
 	val, _ := userCommand.Get()
 	log.WithFields(log.Fields{"command": val}).Infoln("user command received")
