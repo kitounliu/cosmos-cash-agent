@@ -6,17 +6,20 @@ type Holding struct {
 }
 
 type State struct {
-	Contacts    []string  `json:"contacts"`
-	Balances    []Holding `json:"balances"`
-	Credentials []string  `json:"credentials"`
+	Contacts    map[string]Contact `json:"contacts"`
+	Credentials []string           `json:"credentials"`
+	Address     string             `json:"address"`
 }
 
 func NewState() *State {
 	return &State{
-		Contacts:    make([]string, 0),
-		Balances:    make([]Holding, 0),
+		Contacts:    make(map[string]Contact, 0),
 		Credentials: make([]string, 0),
 	}
 }
 
-
+type Contact struct {
+	DID     string
+	Address string
+	Name    string
+}

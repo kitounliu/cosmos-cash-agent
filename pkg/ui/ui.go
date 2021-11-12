@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
+	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
 )
 
 var (
@@ -22,8 +23,12 @@ var (
 	balances             = binding.NewStringList()
 	balancesChainOfTrust = binding.NewString()
 	// credentials
+	// TODO need to have separate stuff for public and private credentials
 	credentials    = binding.NewStringList()
 	credentialData = binding.NewString()
+	// contacts
+	contacts    = binding.NewStringList()
+	contactData = binding.NewString()
 	// logs
 	logData = binding.NewString()
 )
@@ -53,6 +58,8 @@ func Render(cfg *config.EdgeConfigSchema) {
 
 	myWindow.SetOnClosed(func() {
 		// write the state on file
+		appState, _ := config.GetAppData("state.json")
+		helpers.WriteJson(appState, cfg.RuntimeState)
 	})
 
 	// run the dispatcher that updates the ui
@@ -63,23 +70,17 @@ func Render(cfg *config.EdgeConfigSchema) {
 }
 
 func getMessagesTab() *container.TabItem {
-	contacts := []string{
-		"alice",
-		"bob",
-		"emti",
-		"whatever",
-	}
 
-	contactList := widget.NewList(
-		func() int {
-			return len(contacts)
-		},
+	list := widget.NewListWithData(
+		contacts,
 		func() fyne.CanvasObject {
 			return widget.NewLabel("")
 		},
-		func(id widget.ListItemID, o fyne.CanvasObject) {
-			o.(*widget.Label).SetText(contacts[id])
-		})
+		func(di binding.DataItem, o fyne.CanvasObject) {
+			o.(*widget.Label).Bind(di.(binding.String))
+		},
+	)
+	list.OnSelected = contactSelected
 
 	msgPanel := container.NewVBox()
 	msgScroll := container.NewScroll(msgPanel)
@@ -99,7 +100,7 @@ func getMessagesTab() *container.TabItem {
 		msgScroll,
 	)
 
-	body := container.NewHSplit(contactList, rightPanel)
+	body := container.NewHSplit(list, rightPanel)
 	main := container.New(layout.NewMaxLayout(), body)
 
 	return container.NewTabItem("Messages", main)
@@ -148,7 +149,7 @@ func getBalancesTab() *container.TabItem {
 		},
 	)
 
-	list.OnUnselected = balancesClick
+	list.OnUnselected = balancesSelected
 
 	msgPanel := widget.NewLabelWithData(balancesChainOfTrust)
 	msgScroll := container.NewScroll(msgPanel)
