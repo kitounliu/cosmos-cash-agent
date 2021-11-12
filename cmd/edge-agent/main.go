@@ -10,7 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
-	"sync"
 )
 
 func init() {
@@ -49,15 +48,12 @@ func main() {
 	go agent.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
 
 	// cosmos-sdk keystore
-	// https://github.com/cosmos/cosmos-sdk/blob/master/client/keys/add.go
+	//https://github.com/cosmos/cosmos-sdk/blob/master/client/keys/add.go
 	//wallet := chain.Client(cfg, pwd)
 	//go wallet.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
 
 	// render the app
 	ui.Render(cfg)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	wg.Wait()
 }
 
 // setup creates the app config folder

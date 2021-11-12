@@ -10,26 +10,21 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
-	log "github.com/sirupsen/logrus"
 )
 
 var (
 	appCfg config.EdgeConfigSchema
 	// ui data binding
 	userCommand = binding.NewString()
-	messages    = binding.NewStringList()
+	// messages tab command
+	messages = binding.NewStringList()
+	// balances
+	balances             = binding.NewStringList()
+	balancesChainOfTrust = binding.NewString()
+	// credentials
+	credentials          = binding.NewStringList()
+	credentialData       = binding.NewString()
 )
-
-func executeCmd() {
-	val, _ := userCommand.Get()
-	log.WithFields(log.Fields{"command": val}).Infoln("user command received")
-	if val == "add" {
-
-	}
-
-	userCommand.Set("")
-
-}
 
 func Render(cfg config.EdgeConfigSchema) {
 
@@ -95,8 +90,7 @@ func getMessagesTab() *container.TabItem {
 		nil,
 		nil,
 		msgScroll,
-		)
-
+	)
 
 	body := container.NewHSplit(contactList, rightPanel)
 	main := container.New(layout.NewMaxLayout(), body)
@@ -110,67 +104,50 @@ func getDashboardTab() *container.TabItem {
 
 		widget.NewLabel(fmt.Sprintf("Wallet owner: %s", appCfg.ControllerName)),
 		widget.NewLabel(fmt.Sprintf("Wallet DID ID: did:cosmos:net:%s:%s", appCfg.ChainID, appCfg.ControllerDidID)),
-		)
-
+	)
 
 	return container.NewTabItem("Dashboard", main)
 }
 
 func getCredentialsTab() *container.TabItem {
-
-	listData := []string{
-		"User Credential",
-		"User Credential",
-		"eIDAS credential",
-	}
-
-	list := widget.NewList(
-		func() int {
-			return len(listData)
-		},
+	list := widget.NewListWithData(
+		credentials,
 		func() fyne.CanvasObject {
 			return widget.NewLabel("")
 		},
-		func(id widget.ListItemID, o fyne.CanvasObject) {
-			o.(*widget.Label).SetText(listData[id])
-		})
+		func(di binding.DataItem, o fyne.CanvasObject) {
 
-	msgPanel := container.NewVBox()
+			// o.(*widget.Label).SetText(id.)
+		},
+	)
+
+
+	msgPanel := widget.NewLabelWithData(credentialData)
 	msgScroll := container.NewScroll(msgPanel)
-
-
 
 	body := container.NewHSplit(list, msgScroll)
 	main := container.New(layout.NewMaxLayout(), body)
-
-
 
 	return container.NewTabItem("Credentials", main)
 }
 
 func getBalancesTab() *container.TabItem {
 
-	listData := []string{
-		"sEURO: 20",
-		"wEURO: 31",
-		"tEURO: 0.13",
-	}
-
-	list := widget.NewList(
-		func() int {
-			return len(listData)
-		},
+	list := widget.NewListWithData(
+		balances,
 		func() fyne.CanvasObject {
 			return widget.NewLabel("")
 		},
-		func(id widget.ListItemID, o fyne.CanvasObject) {
-			o.(*widget.Label).SetText(listData[id])
-		})
+		func(di binding.DataItem, o fyne.CanvasObject) {
 
-	msgPanel := container.NewVBox()
+			// o.(*widget.Label).SetText(id.)
+		},
+	)
+
+	list.OnUnselected = balancesClick
+
+	msgPanel := widget.NewLabelWithData(balancesChainOfTrust)
 	msgScroll := container.NewScroll(msgPanel)
-
-
 
 	body := container.NewHSplit(list, msgScroll)
 	main := container.New(layout.NewMaxLayout(), body)

@@ -2,11 +2,9 @@ package chain
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"google.golang.org/grpc"
 	"net/http"
 	"time"
@@ -135,19 +133,6 @@ func (cc *ChainClient) BroadcastTx(msgs ...sdk.Msg) {
 		log.Fatalln("failed tx", err)
 	}
 
-}
-
-func (cc *ChainClient) Balance(address string) *sdk.Coin {
-	bankClient := banktypes.NewQueryClient(cc.ctx)
-	bankRes, err := bankClient.Balance(
-		context.Background(),
-		&banktypes.QueryBalanceRequest{Address: address, Denom: "cash"},
-	)
-	if err != nil {
-		log.Fatalln("error requesting balance", err)
-	}
-	log.Infoln("balance for", address, "is", bankRes.GetBalance())
-	return bankRes.GetBalance()
 }
 
 // Init performs the client initialization

@@ -83,10 +83,10 @@ func (cw *SSIWallet) Run(state *config.State, hub *config.MsgHub) {
 		log.Infoln("received message", m)
 	}
 	// here an example how to send the messages to the wallet
-	hub.TokenWalletIn <- "add verification method xyz"
+	//hub.TokenWalletIn <- config.AppMsg{config.MsgBalances, "add verification method xyz"}
 
 	// here an example how to send a notification to the ui
-	hub.Notification <- "connection with bob agent established, bob is now a contact"
+	// hub.Notification <- "connection with bob agent established, bob is now a contact"
 
 }
 
