@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	appCfg config.EdgeConfigSchema
+	appCfg *config.EdgeConfigSchema
 	// ui data binding
 	userCommand = binding.NewString()
 	// messages tab command
@@ -22,22 +22,26 @@ var (
 	balances             = binding.NewStringList()
 	balancesChainOfTrust = binding.NewString()
 	// credentials
-	credentials          = binding.NewStringList()
-	credentialData       = binding.NewString()
+	credentials    = binding.NewStringList()
+	credentialData = binding.NewString()
+	// logs
+	logData = binding.NewString()
 )
 
-func Render(cfg config.EdgeConfigSchema) {
+func Render(cfg *config.EdgeConfigSchema) {
 
 	appCfg = cfg
 
 	myApp := app.New()
 	myWindow := myApp.NewWindow(cfg.ControllerName)
 
+	// main content
 	tabs := container.NewAppTabs(
 		getMessagesTab(),
 		getCredentialsTab(),
 		getBalancesTab(),
 		getDashboardTab(),
+		getLogTab(),
 	)
 
 	myWindow.SetContent(
@@ -51,6 +55,9 @@ func Render(cfg config.EdgeConfigSchema) {
 		// write the state on file
 	})
 
+	// run the dispatcher that updates the ui
+	go dispatcher(cfg.RuntimeMsgs.Notification)
+	// lanuch the app
 	myWindow.Resize(fyne.NewSize(940, 660))
 	myWindow.ShowAndRun()
 }
@@ -101,9 +108,8 @@ func getMessagesTab() *container.TabItem {
 func getDashboardTab() *container.TabItem {
 
 	main := container.NewVBox(
-
-		widget.NewLabel(fmt.Sprintf("Wallet owner: %s", appCfg.ControllerName)),
-		widget.NewLabel(fmt.Sprintf("Wallet DID ID: did:cosmos:net:%s:%s", appCfg.ChainID, appCfg.ControllerDidID)),
+		widget.NewLabel(fmt.Sprintf("Wallet owner: \n%s", appCfg.ControllerName)),
+		widget.NewLabel(fmt.Sprintf("Wallet DID ID: \ndid:cosmos:net:%s:%s", appCfg.ChainID, appCfg.ControllerDidID)),
 	)
 
 	return container.NewTabItem("Dashboard", main)
@@ -116,11 +122,10 @@ func getCredentialsTab() *container.TabItem {
 			return widget.NewLabel("")
 		},
 		func(di binding.DataItem, o fyne.CanvasObject) {
-
-			// o.(*widget.Label).SetText(id.)
+			o.(*widget.Label).Bind(di.(binding.String))
 		},
 	)
-
+	list.OnSelected = credentialsSelected
 
 	msgPanel := widget.NewLabelWithData(credentialData)
 	msgScroll := container.NewScroll(msgPanel)
@@ -139,8 +144,7 @@ func getBalancesTab() *container.TabItem {
 			return widget.NewLabel("")
 		},
 		func(di binding.DataItem, o fyne.CanvasObject) {
-
-			// o.(*widget.Label).SetText(id.)
+			o.(*widget.Label).Bind(di.(binding.String))
 		},
 	)
 
@@ -153,4 +157,10 @@ func getBalancesTab() *container.TabItem {
 	main := container.New(layout.NewMaxLayout(), body)
 
 	return container.NewTabItem("Balances", main)
+}
+
+func getLogTab() *container.TabItem {
+	msgPanel := widget.NewLabelWithData(logData)
+	main := container.NewScroll(msgPanel)
+	return container.NewTabItem("Logs", main)
 }
