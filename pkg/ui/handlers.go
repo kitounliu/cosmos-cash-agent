@@ -2,7 +2,6 @@ package ui
 
 import (
 	"encoding/json"
-	"fmt"
 	"fyne.io/fyne/v2/widget"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	vcTypes "github.com/allinbits/cosmos-cash/v2/x/verifiable-credential/types"
@@ -20,8 +19,7 @@ func dispatcher(in chan config.AppMsg) {
 		case config.MsgBalances:
 			var newBalances []string
 			for _, c := range m.Payload.(sdk.Coins) {
-				b := fmt.Sprintf("%s: %v", c.GetDenom(), c.Amount.String())
-				newBalances = append(newBalances, b)
+				newBalances = append(newBalances, c.String())
 			}
 			balances.Set(newBalances)
 		case config.MsgChainOfTrust:
@@ -35,8 +33,8 @@ func dispatcher(in chan config.AppMsg) {
 			}
 			credentials.Set(credentialIDs)
 		case config.MsgPublicVCData:
-			vcs := m.Payload.([]vcTypes.VerifiableCredential)
-			data, _ := json.Marshal(vcs)
+			vcs := m.Payload.(vcTypes.VerifiableCredential)
+			data, _ := json.MarshalIndent(vcs, "", " ")
 			credentialData.Set(string(data))
 		}
 	}
@@ -48,9 +46,10 @@ func balancesClick(iID widget.ListItemID) {
 	appCfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgChainOfTrust, v)
 }
 
-func credentialsClick(iID widget.ListItemID) {
+func credentialsSelected(iID widget.ListItemID) {
 	v, _ := credentials.GetValue(iID)
-	appCfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgPublicVCs, v)
+	log.Debugln("credential selected", v)
+	appCfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgPublicVCData, v)
 }
 
 // This get executed every time the text input field get executed

@@ -9,8 +9,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Balance retrieves the "cash" balance for an account
-func (cc *ChainClient) Balance(address string) *sdk.Coin {
+// GetBalance retrieves the "cash" balance for an account
+func (cc *ChainClient) GetBalance(address string) *sdk.Coin {
 	bankClient := banktypes.NewQueryClient(cc.ctx)
 	bankRes, err := bankClient.Balance(
 		context.Background(),
@@ -23,8 +23,8 @@ func (cc *ChainClient) Balance(address string) *sdk.Coin {
 	return bankRes.GetBalance()
 }
 
-// Balances retrieves all the balances for an account
-func (cc *ChainClient) Balances(address string) sdk.Coins {
+// GetBalances retrieves all the balances for an account
+func (cc *ChainClient) GetBalances(address string) sdk.Coins {
 	bankClient := banktypes.NewQueryClient(cc.ctx)
 	bankRes, err := bankClient.AllBalances(
 		context.Background(),

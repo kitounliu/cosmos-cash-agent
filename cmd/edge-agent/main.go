@@ -6,6 +6,7 @@ import (
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
 	"github.com/allinbits/cosmos-cash-agent/pkg/ui"
+	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/chain"
 	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/ssi"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -16,7 +17,8 @@ func init() {
 	// Log as JSON instead of the default ASCII formatter.
 	log.SetFormatter(&log.JSONFormatter{})
 	// You could set this to any `io.Writer` such as a file
-	file, err := os.OpenFile("./_private/app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	// logFile, _ := config.GetAppData("edget-agent.log")
+	file, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		panic("cannot write log file")
 	}
@@ -49,11 +51,11 @@ func main() {
 
 	// cosmos-sdk keystore
 	//https://github.com/cosmos/cosmos-sdk/blob/master/client/keys/add.go
-	//wallet := chain.Client(cfg, pwd)
-	//go wallet.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
+	wallet := chain.Client(cfg, pwd)
+	go wallet.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
 
 	// render the app
-	ui.Render(cfg)
+	ui.Render(&cfg)
 }
 
 // setup creates the app config folder

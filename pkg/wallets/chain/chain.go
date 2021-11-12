@@ -26,6 +26,8 @@ type ChainClient struct {
 	ctx client.Context
 	fct tx.Factory
 	qry grpc.ClientConn
+	acc sdk.AccAddress
+	did didTypes.DID
 }
 
 type KeyData struct {
@@ -53,9 +55,9 @@ func Client(cfg config.EdgeConfigSchema, password string) *ChainClient {
 			log.Fatalln("error exporting private key", err)
 		}
 
-		helpers.WriteJson(armorPath, map[string]interface{}{
-			"address": info.GetAddress().String(),
-			"armor":   armorData,
+		helpers.WriteJson(armorPath, KeyData{
+			Address: info.GetAddress().String(),
+			Armor:   armorData,
 		})
 		log.Infoln("exported armored private key to", armorPath)
 	} else {
@@ -105,16 +107,18 @@ func Client(cfg config.EdgeConfigSchema, password string) *ChainClient {
 	cc := ChainClient{
 		ctx: initClientCtx,
 		fct: factory,
+		acc: ki.GetAddress(),
+		did: didTypes.NewChainDID(cfg.ChainID, cfg.ControllerDidID),
 	}
 
 	if !exists {
 		// get some tokens here
-		if !cc.Balance(ki.GetAddress().String()).IsPositive() {
+		if !cc.GetBalance(ki.GetAddress().String()).IsPositive() {
 			callFaucet(cfg.FaucetURL, ki.GetAddress().String())
 
 			for i := 0; i < 3; i++ {
 				time.Sleep(6 * time.Second)
-				if cc.Balance(ki.GetAddress().String()).IsPositive() {
+				if cc.GetBalance(ki.GetAddress().String()).IsPositive() {
 					log.Infoln("got a positive balance")
 					break
 				}
@@ -194,4 +198,41 @@ func callFaucet(faucetURL, address string) {
 
 func (cc *ChainClient) Run(state *config.State, hub *config.MsgHub) {
 
+	// send updates about balances
+	t0 := time.NewTicker(30 * time.Second)
+	go func() {
+		for {
+			log.Infoln("ticker! retrieving balances for ", cc.acc)
+			balances := cc.GetBalances(cc.acc.String())
+			hub.Notification <- config.NewAppMsg(config.MsgBalances, balances)
+			<-t0.C
+		}
+	}()
+
+	// send updates about credentials
+	t1 := time.NewTicker(30 * time.Second)
+	go func() {
+		for {
+			log.Infoln("ticker! retrieving credentials for ", cc.did)
+			vcs := cc.GetHolderPublicVCS(cc.did.String())
+			hub.Notification <- config.NewAppMsg(config.MsgPublicVCs, vcs)
+			<-t1.C
+		}
+	}()
+
+	// now process incoming queue
+	for {
+		m := <-hub.TokenWalletIn
+		switch m.Typ {
+		case config.MsgPublicVCData:
+			vc := cc.GetPublicVC(m.Payload.(string))
+			log.Debugln("TokenWallet received MsgPublicVCData msg for ", m.Payload.(string))
+			hub.Notification <- config.NewAppMsg(config.MsgPublicVCData, vc)
+		case config.MsgChainOfTrust:
+			coinStr := m.Payload.(string)
+			c, _ := sdk.ParseCoinNormalized(coinStr)
+			cot := cc.GetChainOfTrust(c.GetDenom())
+			hub.Notification <- config.NewAppMsg(config.MsgChainOfTrust, cot)
+		}
+	}
 }
