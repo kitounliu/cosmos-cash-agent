@@ -196,7 +196,7 @@ func callFaucet(faucetURL, address string) {
 
 }
 
-func (cc *ChainClient) Run(state *config.State, hub *config.MsgHub) {
+func (cc *ChainClient) Run(hub *config.MsgHub) {
 
 	// send updates about balances
 	t0 := time.NewTicker(30 * time.Second)

@@ -47,12 +47,12 @@ func main() {
 	// aries wallet creation
 	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/vc_wallet.md
 	agent := ssi.Agent(cfg.ControllerName, pwd, httpResolver)
-	go agent.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
+	go agent.Run(cfg.RuntimeMsgs)
 
 	// cosmos-sdk keystore
 	//https://github.com/cosmos/cosmos-sdk/blob/master/client/keys/add.go
 	wallet := chain.Client(cfg, pwd)
-	go wallet.Run(cfg.RuntimeState, cfg.RuntimeMsgs)
+	go wallet.Run(cfg.RuntimeMsgs)
 
 	// render the app
 	ui.Render(&cfg)
@@ -89,14 +89,6 @@ func setup() (cfg config.EdgeConfigSchema) {
 		helpers.WriteJson(agentCfg, cfg)
 	} else {
 		helpers.LoadJson(agentCfg, &cfg)
-	}
-	// load app state
-	cfg.RuntimeState = config.NewState()
-	appState, exists := config.GetAppData("state.json")
-	if !exists {
-		helpers.WriteJson(appState, cfg.RuntimeState)
-	} else {
-		helpers.LoadJson(appState, cfg.RuntimeState)
 	}
 	cfg.RuntimeMsgs = config.NewMsgHub()
 	return

@@ -141,9 +141,17 @@ func executeCmd() {
 	val, _ := userCommand.Get()
 	log.WithFields(log.Fields{"command": val}).Infoln("user command received")
 	// parse the command
-	if val == "add" {
-
+	if val == "spend" {
+		// TRANSFER TOKENS TO THE CONTACT
 	}
+
+	// get the current selected contact
+	name, _ := contacts.GetValue(state.SelectedContact)
+	contact := state.Contacts[name]
+	// add the message from to the texts
+	contact.Texts = append(contact.Texts, model.NewTextMessage(appCfg.ControllerName, val))
+	// save the state
+	appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(config.MsgSaveState, nil)
 	// reset the command
 	userCommand.Set("")
 }
