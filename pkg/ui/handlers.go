@@ -5,6 +5,8 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
+	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
+	"github.com/allinbits/cosmos-cash-agent/pkg/model"
 	vcTypes "github.com/allinbits/cosmos-cash/v2/x/verifiable-credential/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	log "github.com/sirupsen/logrus"
@@ -13,6 +15,7 @@ import (
 // this section contains all the databindings to the ui
 var (
 	appCfg *config.EdgeConfigSchema
+	state  *State
 	// balances
 	balances             = binding.NewStringList()
 	balancesChainOfTrust = binding.NewString()
@@ -35,10 +38,24 @@ var (
 // dispatcher this reads notifications and updates the
 // data binding
 func dispatcher(in chan config.AppMsg) {
+	state = NewState()
+	// first load the statate
+	// write the state on file
+	statePath, exists := config.GetAppData("state.json")
+	if !exists {
+		helpers.WriteJson(statePath, state)
+	}
+	// now load the state
+	helpers.LoadJson(statePath, state)
+
+
 
 	for {
 		m := <-in
 		switch m.Typ {
+		case config.MsgSaveState:
+			log.Debugln("saving state to file")
+			helpers.WriteJson(statePath, state)
 		case config.MsgBalances:
 			// populate the list of balances
 			var newBalances []string
@@ -67,14 +84,28 @@ func dispatcher(in chan config.AppMsg) {
 			data, _ := json.MarshalIndent(vcs, "", " ")
 			credentialData.Set(string(data))
 		case config.MsgMarketplaces:
-			var mkps []string
+			var mks []string
 			for _, c := range m.Payload.([]vcTypes.VerifiableCredential) {
-				mkps = append(mkps, c.GetId())
+				mks = append(mks, c.GetId())
 			}
-			marketplaces.Set(mkps)
-		}
-	}
+			marketplaces.Set(mks)
+		case config.MsgContactAdded:
+			contact := m.Payload.(model.Contact)
+			state.Contacts[contact.Name] = contact
+			// updae the model
+			contacts.Append(contact.Name)
+			// request state save
+			appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(config.MsgSaveState, nil)
+		case config.MsgTextReceived:
+			tm := m.Payload.(model.TextMessage)
+			contact, _ := state.Contacts[tm.From]
+			contact.Texts = append(contact.Texts, tm)
+			// save the state
+			appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(config.MsgSaveState, nil)
 
+		}
+
+	}
 }
 
 // balancesSelected gets triggered when an item is selected in the balance list
