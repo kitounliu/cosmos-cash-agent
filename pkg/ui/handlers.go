@@ -24,7 +24,7 @@ func dispatcher(in chan config.AppMsg) {
 			balances.Set(newBalances)
 		case config.MsgChainOfTrust:
 			vcs := m.Payload.([]vcTypes.VerifiableCredential)
-			data, _ := json.Marshal(vcs)
+			data, _ := json.MarshalIndent(vcs, "", " ")
 			balancesChainOfTrust.Set(string(data))
 		case config.MsgPublicVCs:
 			var credentialIDs []string
@@ -33,6 +33,10 @@ func dispatcher(in chan config.AppMsg) {
 			}
 			credentials.Set(credentialIDs)
 		case config.MsgPublicVCData:
+			if m.Payload == nil {
+				credentialData.Set(string("No data"))
+				continue
+			}
 			vcs := m.Payload.(vcTypes.VerifiableCredential)
 			data, _ := json.MarshalIndent(vcs, "", " ")
 			credentialData.Set(string(data))
@@ -44,6 +48,7 @@ func dispatcher(in chan config.AppMsg) {
 // balancesSelected gets triggered when an item is selected in the balance list
 func balancesSelected(iID widget.ListItemID) {
 	v, _ := balances.GetValue(iID)
+	log.Debugln("token selected", v)
 	appCfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgChainOfTrust, v)
 }
 
