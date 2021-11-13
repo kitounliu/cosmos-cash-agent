@@ -77,7 +77,7 @@ func Agent(name, pass, resolverURL string) *SSIWallet {
 // Run should be called as a goroutine, the parameters are:
 // State: the local state of the app that should be stored on disk
 // Hub: is the messages where the 3 components (ui, wallet, agent) can exchange messages
-func (cw *SSIWallet) Run(state *config.State, hub *config.MsgHub) {
+func (cw *SSIWallet) Run(hub *config.MsgHub) {
 
 	// send updates about verifiable credentials
 	t0 := time.NewTicker(30 * time.Second)
