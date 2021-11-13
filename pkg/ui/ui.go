@@ -149,7 +149,7 @@ func getBalancesTab() *container.TabItem {
 		},
 	)
 
-	list.OnUnselected = balancesSelected
+	list.OnSelected = balancesSelected
 
 	msgPanel := widget.NewLabelWithData(balancesChainOfTrust)
 	msgScroll := container.NewScroll(msgPanel)
