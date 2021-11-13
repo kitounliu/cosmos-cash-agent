@@ -38,7 +38,7 @@ func (cc *ChainClient) GetBalances(address string) sdk.Coins {
 }
 
 // GetChainOfTrust retrieve the chain of trust for a token DENOM
-func (cc *ChainClient) GetChainOfTrust(denom string) (cot []vcTypes.VerifiableCredential) {
+func (cc *ChainClient) GetChainOfTrust(licenseCredentialID string) (cot []vcTypes.VerifiableCredential) {
 	client := vcTypes.NewQueryClient(cc.ctx)
 	res, err := client.VerifiableCredentials(
 		context.Background(),
@@ -53,7 +53,7 @@ func (cc *ChainClient) GetChainOfTrust(denom string) (cot []vcTypes.VerifiableCr
 	for _, v := range res.GetVcs() {
 		switch s := v.CredentialSubject.(type) {
 		case *vcTypes.VerifiableCredential_LicenseCred:
-			if s.LicenseCred.CirculationLimit.GetDenom() == denom {
+			if s.LicenseCred.Id == licenseCredentialID {
 				cot = append(cot, v)
 				issuerDID = v.GetSubjectDID()
 				break
@@ -96,6 +96,64 @@ func (cc *ChainClient) GetChainOfTrust(denom string) (cot []vcTypes.VerifiableCr
 	return
 }
 
+
+
+// GetDenomChainOfTrust retrieve the chain of trust for a token DENOM
+func (cc *ChainClient) GetDenomChainOfTrust(denom string) (cot []vcTypes.VerifiableCredential) {
+	client := vcTypes.NewQueryClient(cc.ctx)
+	res, err := client.VerifiableCredentials(
+		context.Background(),
+		&vcTypes.QueryVerifiableCredentialsRequest{},
+	)
+	if err != nil {
+		log.Fatalln("error requesting balance", err)
+	}
+
+	// first search for the license
+	var issuerDID didTypes.DID
+	for _, v := range res.GetVcs() {
+		if s, ok := v.CredentialSubject.(*vcTypes.VerifiableCredential_LicenseCred); ok {
+			if s.LicenseCred.CirculationLimit.GetDenom() == denom {
+				cot = append(cot, v)
+				issuerDID = v.GetSubjectDID()
+				break
+			}
+		}
+	}
+	// if the license is not found then return
+	if issuerDID.String() == "" {
+		return
+	}
+
+	// search for the issuer registartion credential
+	var regulatorDID didTypes.DID
+	for _, v := range res.GetVcs() {
+		if _, ok := v.CredentialSubject.(*vcTypes.VerifiableCredential_RegistrationCred); ok {
+			if v.GetSubjectDID() == issuerDID {
+				cot = append(cot, v)
+				regulatorDID = v.GetIssuerDID()
+				break
+			}
+		}
+	}
+
+	if regulatorDID.String() == "" {
+		return
+	}
+
+	// search for the regulator credentials
+	for _, v := range res.GetVcs() {
+		if _, ok := v.CredentialSubject.(*vcTypes.VerifiableCredential_RegulatorCred); ok {
+			if v.GetSubjectDID() == regulatorDID {
+				cot = append(cot, v)
+				regulatorDID = v.GetIssuerDID()
+				break
+			}
+		}
+	}
+	return
+}
+
 // DIDDoc retrieve a did document for a
 func (cc *ChainClient) DIDDoc(didID string) didTypes.DidDocument {
 	client := didTypes.NewQueryClient(cc.ctx)
@@ -109,7 +167,6 @@ func (cc *ChainClient) DIDDoc(didID string) didTypes.DidDocument {
 
 // GetHolderPublicVCS retrieve the VCS holded by a did
 func (cc *ChainClient) GetHolderPublicVCS(didID string) (vcs []vcTypes.VerifiableCredential) {
-
 	client := vcTypes.NewQueryClient(cc.ctx)
 	res, err := client.VerifiableCredentials(
 		context.Background(),
@@ -124,7 +181,24 @@ func (cc *ChainClient) GetHolderPublicVCS(didID string) (vcs []vcTypes.Verifiabl
 			vcs = append(vcs, v)
 		}
 	}
+	return
+}
 
+// GetLicenseCredentials retrieve the VCS holded by a did
+func (cc *ChainClient) GetLicenseCredentials() (vcs []vcTypes.VerifiableCredential) {
+	client := vcTypes.NewQueryClient(cc.ctx)
+	res, err := client.VerifiableCredentials(
+		context.Background(),
+		&vcTypes.QueryVerifiableCredentialsRequest{},
+	)
+	if err != nil {
+		log.Fatalln("error requesting balance", err)
+	}
+	for _, v := range res.GetVcs() {
+		if _, ok := v.CredentialSubject.(*vcTypes.VerifiableCredential_LicenseCred); ok {
+			vcs = append(vcs, v)
+		}
+	}
 	return
 }
 

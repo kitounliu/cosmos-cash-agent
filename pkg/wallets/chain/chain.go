@@ -220,6 +220,17 @@ func (cc *ChainClient) Run(state *config.State, hub *config.MsgHub) {
 		}
 	}()
 
+	// send updates about credentials
+	t3 := time.NewTicker(30 * time.Second)
+	go func() {
+		for {
+			log.Infoln("ticker! retrieving marketplaces for ", cc.did)
+			vcs := cc.GetLicenseCredentials()
+			hub.Notification <- config.NewAppMsg(config.MsgMarketplaces, vcs)
+			<-t3.C
+		}
+	}()
+
 	// now process incoming queue
 	for {
 		m := <-hub.TokenWalletIn
@@ -227,12 +238,16 @@ func (cc *ChainClient) Run(state *config.State, hub *config.MsgHub) {
 		case config.MsgPublicVCData:
 			vc := cc.GetPublicVC(m.Payload.(string))
 			log.Debugln("TokenWallet received MsgPublicVCData msg for ", m.Payload.(string))
-			hub.Notification <- config.NewAppMsg(config.MsgPublicVCData, vc)
+			hub.Notification <- config.NewAppMsg(m.Typ, vc)
 		case config.MsgChainOfTrust:
 			coinStr := m.Payload.(string)
 			c, _ := sdk.ParseCoinNormalized(coinStr)
-			cot := cc.GetChainOfTrust(c.GetDenom())
-			hub.Notification <- config.NewAppMsg(config.MsgChainOfTrust, cot)
+			cot := cc.GetDenomChainOfTrust(c.GetDenom())
+			hub.Notification <- config.NewAppMsg(m.Typ, cot)
+		case config.MsgMarketplaceData:
+			licenseCredentialID := m.Payload.(string)
+			cot := cc.GetChainOfTrust(licenseCredentialID)
+			hub.Notification <- config.NewAppMsg(m.Typ, cot)
 		}
 	}
 }
