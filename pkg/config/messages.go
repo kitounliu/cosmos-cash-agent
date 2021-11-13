@@ -31,6 +31,14 @@ const (
 	MsgPublicVCs
 	// MsgPublicVCData returns the details of a verifiable credential
 	MsgPublicVCData
+	// MsgMarketplaces used for marketplace listing
+	MsgMarketplaces
+	// MsgMarketplaceData used for details of a marketplace
+	MsgMarketplaceData
+	// MsgVCs returns the list of verifiable credentials
+	MsgVCs
+	// MsgVCData returns the details of a verifiable credential
+	MsgVCData
 
 )
 

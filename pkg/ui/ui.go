@@ -13,26 +13,6 @@ import (
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
 )
 
-var (
-	appCfg *config.EdgeConfigSchema
-	// ui data binding
-	userCommand = binding.NewString()
-	// messages tab command
-	messages = binding.NewStringList()
-	// balances
-	balances             = binding.NewStringList()
-	balancesChainOfTrust = binding.NewString()
-	// credentials
-	// TODO need to have separate stuff for public and private credentials
-	credentials    = binding.NewStringList()
-	credentialData = binding.NewString()
-	// contacts
-	contacts    = binding.NewStringList()
-	contactData = binding.NewString()
-	// logs
-	logData = binding.NewString()
-)
-
 func Render(cfg *config.EdgeConfigSchema) {
 
 	appCfg = cfg
@@ -46,6 +26,7 @@ func Render(cfg *config.EdgeConfigSchema) {
 		getCredentialsTab(),
 		getBalancesTab(),
 		getDashboardTab(),
+		getMarketPlaceTab(),
 		getLogTab(),
 	)
 
@@ -158,6 +139,30 @@ func getBalancesTab() *container.TabItem {
 	main := container.New(layout.NewMaxLayout(), body)
 
 	return container.NewTabItem("Balances", main)
+}
+
+// tabs for marketplace
+func getMarketPlaceTab() *container.TabItem {
+
+	list := widget.NewListWithData(
+		marketplaces,
+		func() fyne.CanvasObject {
+			return widget.NewLabel("")
+		},
+		func(di binding.DataItem, o fyne.CanvasObject) {
+			o.(*widget.Label).Bind(di.(binding.String))
+		},
+	)
+
+	list.OnSelected = marketplacesSelected
+
+	msgPanel := widget.NewLabelWithData(marketplaceData)
+	msgScroll := container.NewScroll(msgPanel)
+
+	body := container.NewHSplit(list, msgScroll)
+	main := container.New(layout.NewMaxLayout(), body)
+
+	return container.NewTabItem("Marketplace", main)
 }
 
 func getLogTab() *container.TabItem {

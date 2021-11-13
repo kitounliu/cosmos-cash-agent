@@ -2,11 +2,34 @@ package ui
 
 import (
 	"encoding/json"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	vcTypes "github.com/allinbits/cosmos-cash/v2/x/verifiable-credential/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	log "github.com/sirupsen/logrus"
+)
+
+// this section contains all the databindings to the ui
+var (
+	appCfg *config.EdgeConfigSchema
+	// balances
+	balances             = binding.NewStringList()
+	balancesChainOfTrust = binding.NewString()
+	// Credentials tab
+	// TODO need to have separate stuff for public and private credentials
+	credentials    = binding.NewStringList()
+	credentialData = binding.NewString()
+	// Messages tab
+	contacts    = binding.NewStringList()
+	userCommand = binding.NewString()
+	messages    = binding.NewStringList()
+	// contactData = binding.NewString()
+	// Marketplace tab
+	marketplaces    = binding.NewStringList()
+	marketplaceData = binding.NewString()
+	// logs
+	logData = binding.NewString()
 )
 
 // dispatcher this reads notifications and updates the
@@ -17,16 +40,19 @@ func dispatcher(in chan config.AppMsg) {
 		m := <-in
 		switch m.Typ {
 		case config.MsgBalances:
+			// populate the list of balances
 			var newBalances []string
 			for _, c := range m.Payload.(sdk.Coins) {
 				newBalances = append(newBalances, c.String())
 			}
 			balances.Set(newBalances)
 		case config.MsgChainOfTrust:
+			// populate the chain of trust for a denom
 			vcs := m.Payload.([]vcTypes.VerifiableCredential)
 			data, _ := json.MarshalIndent(vcs, "", " ")
 			balancesChainOfTrust.Set(string(data))
 		case config.MsgPublicVCs:
+			// populate public credentials
 			var credentialIDs []string
 			for _, c := range m.Payload.([]vcTypes.VerifiableCredential) {
 				credentialIDs = append(credentialIDs, c.Id)
@@ -40,6 +66,12 @@ func dispatcher(in chan config.AppMsg) {
 			vcs := m.Payload.(vcTypes.VerifiableCredential)
 			data, _ := json.MarshalIndent(vcs, "", " ")
 			credentialData.Set(string(data))
+		case config.MsgMarketplaces:
+			var mkps []string
+			for _, c := range m.Payload.([]vcTypes.VerifiableCredential) {
+				mkps = append(mkps, c.GetId())
+			}
+			marketplaces.Set(mkps)
 		}
 	}
 
@@ -57,6 +89,13 @@ func credentialsSelected(iID widget.ListItemID) {
 	v, _ := credentials.GetValue(iID)
 	log.Debugln("credential selected", v)
 	appCfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgPublicVCData, v)
+}
+
+// marketplacesSelected gets triggered when an item is selected in the credential list
+func marketplacesSelected(iID widget.ListItemID) {
+	v, _ := marketplaces.GetValue(iID)
+	log.Debugln("marketplace selected", v)
+	appCfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgMarketplaceData, v)
 }
 
 // contactSelected gets triggered when an item is selected in the contact list
