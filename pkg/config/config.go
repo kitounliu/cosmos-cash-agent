@@ -47,7 +47,6 @@ type EdgeConfigSchema struct {
 	CloudAgentPublicURL string `json:"cloud_agent_public_url"`
 
 	// Runtime
-	RuntimeState *State  `json:"-"`
 	RuntimeMsgs  *MsgHub `json:"-"`
 }
 

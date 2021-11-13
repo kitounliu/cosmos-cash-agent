@@ -39,7 +39,14 @@ const (
 	MsgVCs
 	// MsgVCData returns the details of a verifiable credential
 	MsgVCData
-
+	// 	MsgContactAdded  used when a new contact si added
+	MsgContactAdded
+	// MsgTextReceived used when receiving messages
+	MsgTextReceived
+	// MsgSendText used to send text messages
+	MsgSendText
+	// MsgSaveState persist state to the disk
+	MsgSaveState
 )
 
 // AppMsg are messages that are exchanged within the app

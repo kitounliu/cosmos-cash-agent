@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
-	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
+	log "github.com/sirupsen/logrus"
 )
 
 func Render(cfg *config.EdgeConfigSchema) {
@@ -38,9 +38,7 @@ func Render(cfg *config.EdgeConfigSchema) {
 	)
 
 	myWindow.SetOnClosed(func() {
-		// write the state on file
-		appState, _ := config.GetAppData("state.json")
-		helpers.WriteJson(appState, cfg.RuntimeState)
+		log.Infoln(">>>>>>> TERMINATING <<<<<<<")
 	})
 
 	// run the dispatcher that updates the ui

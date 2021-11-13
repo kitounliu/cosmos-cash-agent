@@ -79,7 +79,7 @@ func Agent(name, pass, resolverURL string) *SSIWallet {
 // Hub: is the messages where the 3 components (ui, wallet, agent) can exchange messages
 func (cw *SSIWallet) Run(state *config.State, hub *config.MsgHub) {
 
-	// send updaes about verifiable credentials
+	// send updates about verifiable credentials
 	t0 := time.NewTicker(30 * time.Second)
 	go func() {
 		for {
@@ -90,7 +90,7 @@ func (cw *SSIWallet) Run(state *config.State, hub *config.MsgHub) {
 		}
 	}()
 
-	// send updaes about new contacts
+	// send updates about contacts
 	t1 := time.NewTicker(30 * time.Second)
 	go func() {
 		for {
