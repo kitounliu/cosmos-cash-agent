@@ -6,7 +6,9 @@ import (
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	vcTypes "github.com/allinbits/cosmos-cash/v2/x/verifiable-credential/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/hyperledger/aries-framework-go/pkg/client/didexchange"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 // dispatcher this reads notifications and updates the
@@ -36,6 +38,9 @@ func dispatcher(in chan config.AppMsg) {
 			vcs := m.Payload.(vcTypes.VerifiableCredential)
 			data, _ := json.MarshalIndent(vcs, "", " ")
 			credentialData.Set(string(data))
+		case config.MsgHandleInvitation:
+			newContact := m.Payload.(*didexchange.Connection)
+			contacts.Append(newContact.TheirLabel + " " + newContact.ConnectionID)
 		}
 	}
 
@@ -65,10 +70,27 @@ func contactSelected(iID widget.ListItemID) {
 func executeCmd() {
 	val, _ := userCommand.Get()
 	log.WithFields(log.Fields{"command": val}).Infoln("user command received")
-	// parse the command
-	if val == "add" {
 
+	s := strings.Split(val, " ")
+
+	switch s[0] {
+	case "ssi":
+	case "s":
+		switch s[1] {
+		case "invitation":
+		case "i":
+			switch s[2] {
+			case "handle":
+			case "h":
+				ns := strings.Join(s, " ")
+				log.Infoln("command handler", ns)
+				appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgHandleInvitation, s[3])
+			}
+		}
+	case "chain":
+		//hub.Notification <- "chain"
 	}
+
 	// reset the command
 	userCommand.Set("")
 }

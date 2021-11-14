@@ -81,10 +81,8 @@ func getMessagesTab() *container.TabItem {
 		},
 	)
 	list.OnSelected = contactSelected
-
 	msgPanel := container.NewVBox()
 	msgScroll := container.NewScroll(msgPanel)
-
 	// footer stuff
 	rightPanel := container.NewBorder(
 		nil,

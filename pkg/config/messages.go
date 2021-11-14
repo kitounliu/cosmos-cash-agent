@@ -1,6 +1,5 @@
 package config
 
-
 // MsgHub contains channels used by the components to send messages to each others
 type MsgHub struct {
 	Notification   chan AppMsg
@@ -31,16 +30,17 @@ const (
 	MsgPublicVCs
 	// MsgPublicVCData returns the details of a verifiable credential
 	MsgPublicVCData
-
+	// MsgHandleInvitation handles a DIDExchange invitation
+	MsgHandleInvitation
 )
 
 // AppMsg are messages that are exchanged within the app
 type AppMsg struct {
-	Typ int
+	Typ     int
 	Payload interface{}
 }
 
-func NewAppMsg(typ int, payload interface{}) AppMsg{
+func NewAppMsg(typ int, payload interface{}) AppMsg {
 	return AppMsg{
 		Typ:     typ,
 		Payload: payload,
