@@ -61,8 +61,19 @@ func getMessagesTab() *container.TabItem {
 	)
 	list.OnSelected = contactSelected
 
-	msgPanel := container.NewVBox()
-	msgScroll := container.NewScroll(msgPanel)
+	// msg list
+	msgList := widget.NewListWithData(
+		messages,
+		func() fyne.CanvasObject {
+			return widget.NewLabel("")
+		},
+		func(di binding.DataItem, o fyne.CanvasObject) {
+			o.(*widget.Label).Bind(di.(binding.String))
+		},
+	)
+
+	//msgPanel := container.NewVBox()
+	msgScroll := container.NewScroll(msgList)
 
 	// footer stuff
 	rightPanel := container.NewBorder(

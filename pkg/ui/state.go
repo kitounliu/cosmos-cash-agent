@@ -13,5 +13,6 @@ func NewState() *State {
 	return &State{
 		Contacts:    make(map[string]model.Contact, 0),
 		Credentials: make([]string, 0),
+		SelectedContact: -1,
 	}
 }

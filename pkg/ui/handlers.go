@@ -47,14 +47,19 @@ func dispatcher(in chan config.AppMsg) {
 	}
 	// now load the state
 	helpers.LoadJson(statePath, state)
+	// now show the contacts
+	var contactNames []string
+	for k, _ := range state.Contacts {
+		contactNames = append(contactNames, k)
+	}
+	contacts.Set(contactNames)
 
-
-
+	// now handle the incoming notifications
 	for {
 		m := <-in
 		switch m.Typ {
 		case config.MsgSaveState:
-			log.Debugln("saving state to file")
+			log.Debugln("saving state to file", statePath)
 			helpers.WriteJson(statePath, state)
 		case config.MsgBalances:
 			// populate the list of balances
@@ -98,13 +103,19 @@ func dispatcher(in chan config.AppMsg) {
 			appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(config.MsgSaveState, nil)
 		case config.MsgTextReceived:
 			tm := m.Payload.(model.TextMessage)
-			contact, _ := state.Contacts[tm.From]
-			contact.Texts = append(contact.Texts, tm)
+			contact, _ := state.Contacts[tm.Channel]
+			contact.Texts = append(contact.Texts, tm) // refresh view
+			state.Contacts[tm.Channel] = contact
+
 			// save the state
 			appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(config.MsgSaveState, nil)
 
+			// append the message if on focus
+			channel, _ := contacts.GetValue(state.SelectedContact)
+			if tm.Channel == channel || tm.From == appCfg.ControllerName {
+				messages.Append(tm.String())
+			}
 		}
-
 	}
 }
 
@@ -131,27 +142,36 @@ func marketplacesSelected(iID widget.ListItemID) {
 
 // contactSelected gets triggered when an item is selected in the contact list
 func contactSelected(iID widget.ListItemID) {
-	// TODO what should happen when a contact is selected?
-	// the messages should be sent to that contact
-	// the payments should be sent to that contact
+	name, _ := contacts.GetValue(iID)
+	contact, _ := state.Contacts[name]
+	msgs := make([]string, len(contact.Texts))
+	for i, msg := range contact.Texts {
+		msgs[i] = msg.String()
+	}
+	messages.Set(msgs)
+	// update selected contact index
+	state.SelectedContact = iID
 }
 
 // executeCmd get executed every time the text input field get executed
 func executeCmd() {
 	val, _ := userCommand.Get()
 	log.WithFields(log.Fields{"command": val}).Infoln("user command received")
+	// TODO: below the logic to process messages
+
 	// parse the command
 	if val == "spend" {
 		// TRANSFER TOKENS TO THE CONTACT
 	}
 
-	// get the current selected contact
-	name, _ := contacts.GetValue(state.SelectedContact)
-	contact := state.Contacts[name]
-	// add the message from to the texts
-	contact.Texts = append(contact.Texts, model.NewTextMessage(appCfg.ControllerName, val))
-	// save the state
-	appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(config.MsgSaveState, nil)
+	// FINALLY RECORD THE MESSAGE IN THE CHAT
+	// if no contact is selected move on
+	if state.SelectedContact < 0 {
+		return
+	}
+	channel, _ := contacts.GetValue(state.SelectedContact)
+	// send it as a text received
+	appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(config.MsgTextReceived, model.NewTextMessage(channel, appCfg.ControllerName, val))
 	// reset the command
 	userCommand.Set("")
 }
