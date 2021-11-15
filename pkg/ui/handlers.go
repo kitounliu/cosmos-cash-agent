@@ -10,6 +10,9 @@ import (
 	vcTypes "github.com/allinbits/cosmos-cash/v2/x/verifiable-credential/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	log "github.com/sirupsen/logrus"
+	"strings"
+
+	"github.com/hyperledger/aries-framework-go/pkg/client/didexchange"
 )
 
 // this section contains all the databindings to the ui
@@ -115,6 +118,10 @@ func dispatcher(in chan config.AppMsg) {
 			if tm.Channel == channel || tm.From == appCfg.ControllerName {
 				messages.Append(tm.String())
 			}
+		case config.MsgHandleInvitation:
+			newContact := m.Payload.(*didexchange.Connection)
+			contacts.Append(newContact.TheirLabel + " " + newContact.ConnectionID)
+
 		}
 	}
 }
@@ -160,8 +167,24 @@ func executeCmd() {
 	// TODO: below the logic to process messages
 
 	// parse the command
-	if val == "spend" {
-		// TRANSFER TOKENS TO THE CONTACT
+	s := strings.Split(val, " ")
+
+	switch s[0] {
+	case "ssi":
+	case "s":
+		switch s[1] {
+		case "invitation":
+		case "i":
+			switch s[2] {
+			case "handle":
+			case "h":
+				ns := strings.Join(s, " ")
+				log.Infoln("command handler", ns)
+				appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgHandleInvitation, s[3])
+			}
+		}
+	case "chain":
+		//hub.Notification <- "chain"
 	}
 
 	// FINALLY RECORD THE MESSAGE IN THE CHAT
@@ -171,7 +194,10 @@ func executeCmd() {
 	}
 	channel, _ := contacts.GetValue(state.SelectedContact)
 	// send it as a text received
-	appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(config.MsgTextReceived, model.NewTextMessage(channel, appCfg.ControllerName, val))
+	appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(
+		config.MsgTextReceived,
+		model.NewTextMessage(channel, appCfg.ControllerName, val),
+	)
 	// reset the command
 	userCommand.Set("")
 }
