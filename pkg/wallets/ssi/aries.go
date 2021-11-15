@@ -35,6 +35,7 @@ var (
 )
 
 type SSIWallet struct {
+	cloudAgentURL     string
 	w                 *wallet.Wallet
 	ctx               *context.Provider
 	didExchangeClient *didexchange.Client
@@ -95,7 +96,7 @@ func createMessagingClient(ctx *context.Provider) *messaging.Client {
 
 }
 
-func Agent(name, pass, resolverURL string) *SSIWallet {
+func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 	// datastore
 	provider := mem.NewProvider()
 	stateProvider := mem.NewProvider()
@@ -106,7 +107,7 @@ func Agent(name, pass, resolverURL string) *SSIWallet {
 	transports = append(transports, outboundWs)
 
 	// resolver
-	httpVDR, err := httpbinding.New(resolverURL,
+	httpVDR, err := httpbinding.New(cfg.CosmosDIDResolverURL,
 		httpbinding.WithAccept(func(method string) bool { return method == "cosmos" }))
 	if err != nil {
 		panic(err.Error())
@@ -119,7 +120,7 @@ func Agent(name, pass, resolverURL string) *SSIWallet {
 		aries.WithOutboundTransports(transports...),
 		aries.WithTransportReturnRoute("all"),
 		aries.WithVDR(httpVDR),
-	//	aries.WithVDR(CosmosVDR{}),
+		//	aries.WithVDR(CosmosVDR{}),
 	)
 	// get the context
 	ctx, err := framework.Context()
@@ -127,13 +128,13 @@ func Agent(name, pass, resolverURL string) *SSIWallet {
 		panic(err)
 	}
 	// creating wallet profile using local KMS passphrase
-	err = wallet.CreateProfile(name, ctx, wallet.WithPassphrase(pass))
+	err = wallet.CreateProfile(cfg.ControllerName, ctx, wallet.WithPassphrase(pass))
 	if err != nil {
 		panic(err)
 	}
 
 	// creating vcwallet instance for user with local KMS settings.
-	w, err = wallet.New(name, ctx)
+	w, err = wallet.New(cfg.ControllerName, ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -143,6 +144,7 @@ func Agent(name, pass, resolverURL string) *SSIWallet {
 	messagingClient := createMessagingClient(ctx)
 
 	return &SSIWallet{
+		cloudAgentURL:     cfg.CloudAgentPublicURL,
 		w:                 w,
 		ctx:               ctx,
 		didExchangeClient: didExchangeClient,
@@ -210,12 +212,12 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 			hub.Notification <- config.NewAppMsg(m.Typ, vc)
 		case config.MsgHandleInvitation:
 			log.Debugln(
-				"TokenWallet received MsgHandleInvitation msg for ",
+				"AgentWallet received MsgHandleInvitation msg for ",
 				m.Payload.(string),
 			)
 			var invite de.CreateInvitationResponse
 			reqURL = fmt.Sprint(
-				"http://localhost:8090",
+				cw.cloudAgentURL,
 				"/connections/create-invitation?&label=BobMediatorEdgeAgent",
 			)
 			post(client, reqURL, nil, &invite)
