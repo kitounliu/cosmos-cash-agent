@@ -42,11 +42,9 @@ func main() {
 
 	pwd := "a_password"
 
-	httpResolver := "http://localhost:2109/identifier/aries/"
-
 	// aries wallet creation
 	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/vc_wallet.md
-	agent := ssi.Agent(cfg.ControllerName, pwd, httpResolver)
+	agent := ssi.Agent(cfg, pwd)
 	go agent.Run(cfg.RuntimeMsgs)
 
 	// cosmos-sdk keystore
@@ -73,7 +71,7 @@ func setup() (cfg config.EdgeConfigSchema) {
 		}
 	}
 	// load wallet config
-	agentCfg, exists := config.GetAppConfig("edget-agent.json")
+	agentCfg, exists := config.GetAppConfig("edge-agent.json")
 	if !exists {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Println("Hi there! looks like you are new here, welcome!")
