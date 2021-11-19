@@ -2,9 +2,11 @@ package chain
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
+	"github.com/tendermint/starport/starport/pkg/cosmosclient"
 	"google.golang.org/grpc"
 	"net/http"
 	"time"
@@ -74,6 +76,12 @@ func Client(cfg config.EdgeConfigSchema, password string) *ChainClient {
 	if err != nil {
 		log.Fatalln("cannot load stored key by uid", err)
 	}
+
+	cosmosclient.New(context.Background(),
+		cosmosclient.WithHome(chainData),
+		cosmosclient.WithNodeAddress(cfg.NodeURI),
+	)
+
 	// RPC client for transactions
 	netCli, err := client.NewClientFromNode(cfg.NodeURI)
 	if err != nil {
