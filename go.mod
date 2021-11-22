@@ -2,7 +2,7 @@ module github.com/allinbits/cosmos-cash-agent
 
 go 1.17
 
-replace github.com/hyperledger/aries-framework-go => /home/ghost/git/hyperledger/aries-framework-go
+// replace github.com/hyperledger/aries-framework-go => /home/ghost/git/hyperledger/aries-framework-go
 
 require (
 	fyne.io/fyne/v2 v2.1.1
