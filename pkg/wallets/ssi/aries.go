@@ -43,9 +43,11 @@ var (
 	reqURL string
 )
 
+// SSIWallet is the wallet
 type SSIWallet struct {
 	cloudAgentURL     string
 	ControllerDidID   string
+	cloudAgentWsURL   string
 	w                 *wallet.Wallet
 	ctx               *context.Provider
 	didExchangeClient *didexchange.Client
@@ -173,6 +175,7 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 	return &SSIWallet{
 		cloudAgentURL:     cfg.CloudAgentPublicURL,
 		ControllerDidID:   fmt.Sprintf("did:cosmos:net:%s:%s", cfg.ChainID, cfg.ControllerDidID),
+		cloudAgentWsURL:   cfg.CloudAgentWsURL,
 		w:                 w,
 		ctx:               ctx,
 		didExchangeClient: didExchangeClient,
@@ -300,7 +303,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 			if invite.Invitation == nil {
 				reqURL = fmt.Sprint(
 					// TODO: fix cloud agent is properly exposed on k8s cluster
-					"http://localhost:8090",
+					cw.cloudAgentURL,
 					"/connections/create-invitation?public=did:cosmos:net:cosmoscash-testnet:mediatortestnetws1&label=BobMediatorEdgeAgent",
 				)
 				post(client, reqURL, nil, &invite)
