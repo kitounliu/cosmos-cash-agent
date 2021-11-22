@@ -16,6 +16,7 @@ import (
 func init() {
 	// Log as JSON instead of the default ASCII formatter.
 	log.SetFormatter(&log.JSONFormatter{})
+	log.SetReportCaller(true)
 	// You could set this to any `io.Writer` such as a file
 	// logFile, _ := config.GetAppData("edget-agent.log")
 	file, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)

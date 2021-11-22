@@ -63,14 +63,14 @@ func createDIDExchangeClient(ctx *context.Provider) *didexchange.Client {
 	// create a new did exchange client
 	didExchange, err := didexchange.New(ctx)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	actions := make(chan service.DIDCommAction, 1)
 
 	err = didExchange.RegisterActionEvent(actions)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	// NOTE: no auto execute because it doens't work with routing
@@ -85,13 +85,13 @@ func createRoutingClient(ctx *context.Provider) *mediator.Client {
 	// create the mediator client this client handler routing between edge and cloud agents
 	routeClient, err := mediator.New(ctx)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 	events := make(chan service.DIDCommAction)
 
 	err = routeClient.RegisterActionEvent(events)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 	go func() {
 		service.AutoExecuteActionEvent(events)
@@ -106,7 +106,7 @@ func createMessagingClient(ctx *context.Provider) *messaging.Client {
 
 	msgClient, err := messaging.New(ctx, registrar, n)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	//genericMsg.Type = "https://didcomm.org/generic/1.0/message"
@@ -116,7 +116,7 @@ func createMessagingClient(ctx *context.Provider) *messaging.Client {
 
 	err = msgClient.RegisterService(name, msgType, purpose...)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 	services := msgClient.Services()
 	println(services[0])
@@ -153,7 +153,7 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 	// get the context
 	ctx, err := framework.Context()
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	didExchangeClient := createDIDExchangeClient(ctx)
@@ -163,13 +163,13 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 	// creating wallet profile using local KMS passphrase
 	err = wallet.CreateProfile(cfg.ControllerName, ctx, wallet.WithPassphrase(pass))
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	// creating vcwallet instance for user with local KMS settings.
 	w, err = wallet.New(cfg.ControllerName, ctx)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	return &SSIWallet{
@@ -189,16 +189,14 @@ func (cw *SSIWallet) HandleInvitation(
 ) *didexchange.Connection {
 	connectionID, err := cw.didExchangeClient.HandleInvitation(invitation)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	connection, err := cw.didExchangeClient.GetConnection(connectionID)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
-	log.Infoln("Connection created", connection)
-	fmt.Println(connectionID)
-
+	log.WithFields(log.Fields{"connectionID": connectionID}).Infoln("Connection created", connection)
 	return connection
 }
 
@@ -207,7 +205,7 @@ func (cw *SSIWallet) AddMediator(
 ) {
 	err := cw.routeClient.Register(connectionID)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	log.Infoln("Mediator created")
@@ -236,7 +234,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 			// TODO handle contacts
 			connections, err := cw.didExchangeClient.QueryConnections(&didexchange.QueryConnectionsParams{})
 			if err != nil {
-				panic(err)
+				log.Fatalln(err)
 			}
 			log.Infoln("queried connections", connections)
 			hub.Notification <- config.NewAppMsg(config.MsgUpdateContacts, connections)
@@ -271,21 +269,21 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 					didexchange.WithRouterConnectionID(m.Payload.(string)),
 				)
 				if err != nil {
-					panic(err)
+					log.Fatalln(err)
 				}
 				jsonStr, _ := json.Marshal(inv)
-				fmt.Println(string(jsonStr))
+				log.Debugln("create invitation reply", string(jsonStr))
 			} else {
 				inv, err := cw.didExchangeClient.CreateInvitation(
 					"bob-alice-conn-direct",
 				)
 				if err != nil {
-					panic(err)
+					log.Fatalln(err)
 				}
 				jsonStr, _ := json.Marshal(inv)
-				fmt.Println(string(jsonStr))
+				log.Debugln("direct create invitation", string(jsonStr))
 			}
-			fmt.Print(inv)
+			log.Debugln("invitation is", inv)
 
 			hub.Notification <- config.NewAppMsg(config.MsgUpdateContact, string(jsonStr))
 		case config.MsgHandleInvitation:
@@ -327,7 +325,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 					"new-with-public-did",
 					didexchange.WithRouterConnections(params[1]))
 				if err != nil {
-					panic(err)
+					log.Fatalln(err)
 				}
 			} else {
 				err := cw.didExchangeClient.AcceptInvitation(
@@ -336,7 +334,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 					"new-wth",
 				)
 				if err != nil {
-					panic(err)
+					log.Fatalln(err)
 				}
 			}
 		case config.MsgApproveRequest:
@@ -352,7 +350,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 				didexchange.WithRouterConnections(params[1]),
 			)
 			if err != nil {
-				panic(err)
+				log.Fatalln(err)
 			}
 
 		case config.MsgAddMediator:
@@ -375,7 +373,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 			// TODO: validate invitation is correct
 			connection, err := cw.didExchangeClient.GetConnection(connID)
 			if err != nil {
-				panic(err)
+				log.Fatalln(err)
 			}
 			sb.WriteString("ConnectionID: " + connection.ConnectionID + "\n")
 			sb.WriteString("Status: " + connection.State + "\n")
@@ -409,9 +407,9 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 
 			resp, err := cw.messagingClient.Send(rawBytes, messaging.SendByConnectionID(params[0]))
 			if err != nil {
-				panic(err)
+				log.Fatalln(err)
 			}
-			fmt.Println(resp)
+			log.Debugln("message response is", resp)
 		}
 	}
 }
@@ -420,18 +418,18 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 func request(client *http.Client, method, url string, requestBody io.Reader, val interface{}) {
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
-		fmt.Print(err.Error())
+		log.Errorln(err)
 	}
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Print(err.Error())
+		log.Errorln(err)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Print(err.Error())
+		log.Errorln(err)
 	}
 	json.Unmarshal(bodyBytes, &val)
 }
