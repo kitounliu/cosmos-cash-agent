@@ -96,8 +96,6 @@ func (cc *ChainClient) GetChainOfTrust(licenseCredentialID string) (cot []vcType
 	return
 }
 
-
-
 // GetDenomChainOfTrust retrieve the chain of trust for a token DENOM
 func (cc *ChainClient) GetDenomChainOfTrust(denom string) (cot []vcTypes.VerifiableCredential) {
 	client := vcTypes.NewQueryClient(cc.ctx)
@@ -152,17 +150,6 @@ func (cc *ChainClient) GetDenomChainOfTrust(denom string) (cot []vcTypes.Verifia
 		}
 	}
 	return
-}
-
-// DIDDoc retrieve a did document for a
-func (cc *ChainClient) DIDDoc(didID string) didTypes.DidDocument {
-	client := didTypes.NewQueryClient(cc.ctx)
-	res, err := client.DidDocument(context.Background(), &didTypes.QueryDidDocumentRequest{Id: didID})
-	if err != nil {
-		log.Fatalln("error requesting balance", err)
-	}
-	log.Infoln("did document for", didID, "is", res.GetDidDocument())
-	return res.GetDidDocument()
 }
 
 // GetHolderPublicVCS retrieve the VCS holded by a did

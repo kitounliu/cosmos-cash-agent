@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -52,6 +53,23 @@ type EdgeConfigSchema struct {
 	// Runtime
 	RuntimeMsgs *MsgHub `json:"-"`
 }
+
+// ControllerDID returns the current user did
+func (ecs EdgeConfigSchema) ControllerDID() string{
+	return fmt.Sprintf("did:cosmos:net:%s:%s", ecs.ChainID, ecs.ControllerDidID)
+}
+
+// MediatorDID returns the cloud agent mediator did
+func (ecs EdgeConfigSchema) MediatorDID() string{
+	return "did:cosmos:net:cosmoscash-testnet:a9a67d0e-4d34-11ec-a24d-902e16d09958"
+}
+
+// CloudAgentAPIURL returns the cloud agent mediator did
+func (ecs EdgeConfigSchema) CloudAgentAPIURL() string{
+	return "https://agent.cosmos-cash.app.beta.starport.cloud"
+}
+
+
 
 func GetAppData(subPath ...string) (string, bool) {
 	v := []string{"data"}
