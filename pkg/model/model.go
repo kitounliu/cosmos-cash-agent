@@ -50,3 +50,15 @@ func NewContact(name, didID string, connection didexchange.Connection) Contact {
 		Texts:      make([]TextMessage, 0),
 	}
 }
+
+// X25519ECDHKWPub pub key for key agreement format
+type X25519ECDHKWPub struct {
+	Kid   string `json:"kid"`
+	X     string `json:"x"`
+	Curve string `json:"curve"`
+	Type  string `json:"type"`
+}
+
+func GenericVerifiableCredential(data map[string]interface{}) {
+	tig
+}

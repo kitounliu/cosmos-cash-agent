@@ -2,13 +2,10 @@ package chain
 
 import (
 	"bytes"
-	"encoding/base64"
-	"encoding/json"
-
 	"fmt"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
-	"github.com/allinbits/cosmos-cash-agent/pkg/wallets/ssi"
+	"github.com/allinbits/cosmos-cash-agent/pkg/model"
 	"google.golang.org/grpc"
 	"net/http"
 	"time"
@@ -39,7 +36,7 @@ type KeyData struct {
 	Armor   string `json:"armor"`
 }
 
-func Client(cfg config.EdgeConfigSchema, password string, ssiwallet *ssi.SSIWallet) *ChainClient {
+func Client(cfg config.EdgeConfigSchema, password string) *ChainClient {
 	log.Infoln("initializing client")
 	chainData, _ := config.GetAppData("chain")
 
@@ -153,7 +150,7 @@ func (cc *ChainClient) BroadcastTx(msgs ...sdk.Msg) {
 // 1. creates account keypair
 // 2. get some coins from the faucet
 // 3. creates the did document
-func initDIDDoc(chainID, didID, agentURL string, ki keyring.Info, ssiWallet *ssi.SSIWallet) sdk.Msg {
+func initDIDDoc(chainID, didID, agentURL string, ki keyring.Info) sdk.Msg {
 	log.Println("initializing new did document", didID)
 	did := didTypes.NewChainDID(chainID, didID)
 	// verification method id
@@ -169,40 +166,6 @@ func initDIDDoc(chainID, didID, agentURL string, ki keyring.Info, ssiWallet *ssi
 		nil,
 	)
 
-	keyID, pubKeyBytes, _ := ssiWallet.GetContext().KMS().CreateAndExportPubKeyBytes("X25519ECDHKW")
-	ariesvmID := did.NewVerificationMethodID(keyID)
-
-	type x25519ECDHKW struct {
-		Kid   string `json:"kid"`
-		X     string `json:"x"`
-		Curve string `json:"curve"`
-		Type  string `json:"type"`
-	}
-
-	// now get into a struct
-	var xPubKey x25519ECDHKW
-	err := json.Unmarshal(pubKeyBytes, &xPubKey)
-	if err != nil {
-		panic(err)
-	}
-	// now convert the base64 encoding
-	rawPubKey, err := base64.StdEncoding.DecodeString(xPubKey.X)
-	if err != nil {
-		panic(err)
-	}
-
-	verificationKeyAgreement := didTypes.NewVerification(
-		didTypes.NewVerificationMethod(
-			ariesvmID,
-			did,
-			didTypes.NewPublicKeyMultibase(
-				rawPubKey,
-				didTypes.DIDVMethodTypeX25519KeyAgreementKey2019),
-		),
-		[]string{didTypes.KeyAgreement},
-		nil,
-	)
-
 	service := didTypes.NewService(
 		didID+"-agent",
 		"DIDCommMessaging",
@@ -211,7 +174,7 @@ func initDIDDoc(chainID, didID, agentURL string, ki keyring.Info, ssiWallet *ssi
 
 	return didTypes.NewMsgCreateDidDocument(
 		did.String(),
-		didTypes.Verifications{verification, verificationKeyAgreement},
+		didTypes.Verifications{verification},
 		didTypes.Services{service},
 		ki.GetAddress().String(),
 	)
@@ -271,12 +234,14 @@ func (cc *ChainClient) Run(hub *config.MsgHub) {
 	// now process incoming queue
 	for {
 		m := <-hub.TokenWalletIn
+		log.Debugf("token wallet received message %v", m)
 		switch m.Typ {
 		case config.MsgPublicVCData:
 			vc := cc.GetPublicVC(m.Payload.(string))
 			log.Debugln("TokenWallet received MsgPublicVCData msg for ", m.Payload.(string))
 			hub.Notification <- config.NewAppMsg(m.Typ, vc)
 		case config.MsgChainOfTrust:
+			log.Debugln("TokenWallet received MsgPublicVCData msg for ", m.Payload.(string))
 			coinStr := m.Payload.(string)
 			c, _ := sdk.ParseCoinNormalized(coinStr)
 			cot := cc.GetDenomChainOfTrust(c.GetDenom())
@@ -285,6 +250,10 @@ func (cc *ChainClient) Run(hub *config.MsgHub) {
 			licenseCredentialID := m.Payload.(string)
 			cot := cc.GetChainOfTrust(licenseCredentialID)
 			hub.Notification <- config.NewAppMsg(m.Typ, cot)
+		case config.MsgDIDAddAgentKeys:
+			log.Debugln("adding new key agreement to the did", cc.did)
+			pk := m.Payload.(model.X25519ECDHKWPub)
+			cc.DIDAddVerification(pk, didTypes.KeyAgreement, didTypes.AssertionMethod)
 		}
 	}
 }

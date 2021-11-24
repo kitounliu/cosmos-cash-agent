@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/allinbits/cosmos-cash-agent/pkg/model"
+	"github.com/hyperledger/aries-framework-go/component/storage/leveldb"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -46,13 +49,16 @@ var (
 // SSIWallet is the wallet
 type SSIWallet struct {
 	cloudAgentURL     string
-	ControllerDidID   string
+	cloudAgentAPI     string
 	cloudAgentWsURL   string
+	ControllerDID     string
+	MediatorDID       string
 	w                 *wallet.Wallet
 	ctx               *context.Provider
 	didExchangeClient *didexchange.Client
 	routeClient       *mediator.Client
 	messagingClient   *messaging.Client
+	walletAuthToken   string
 }
 
 func (s SSIWallet) GetContext() *context.Provider {
@@ -126,8 +132,11 @@ func createMessagingClient(ctx *context.Provider) *messaging.Client {
 
 func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 	// datastore
-	provider := mem.NewProvider()
-	stateProvider := mem.NewProvider()
+	storePath, _ := config.GetAppData("aries_store")
+	provider := leveldb.NewProvider(storePath)
+
+	statePath, _ := config.GetAppConfig("aries_state")
+	stateProvider := leveldb.NewProvider(statePath)
 
 	// ws outbound
 	var transports []transport.OutboundTransport
@@ -138,7 +147,7 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 	httpVDR, err := httpbinding.New(cfg.CosmosDIDResolverURL,
 		httpbinding.WithAccept(func(method string) bool { return method == "cosmos" }))
 	if err != nil {
-		panic(err.Error())
+		log.Fatalln(err)
 	}
 
 	// create framework
@@ -147,6 +156,8 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 		aries.WithProtocolStateStoreProvider(stateProvider),
 		aries.WithOutboundTransports(transports...),
 		aries.WithTransportReturnRoute("all"),
+		aries.WithKeyType(kms.ED25519Type),
+		aries.WithKeyAgreementType(kms.X25519ECDHKWType),
 		aries.WithVDR(httpVDR),
 		//	aries.WithVDR(CosmosVDR{}),
 	)
@@ -161,26 +172,47 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 	messagingClient := createMessagingClient(ctx)
 
 	// creating wallet profile using local KMS passphrase
-	err = wallet.CreateProfile(cfg.ControllerName, ctx, wallet.WithPassphrase(pass))
-	if err != nil {
-		log.Fatalln(err)
+	if err := wallet.CreateProfile(cfg.ControllerName, ctx, wallet.WithPassphrase(pass)); err != nil {
+		log.Infoln("profile already exists for", cfg.ControllerName, err)
+	} else {
+		log.Infoln("creating new profile for", cfg.ControllerName)
+		_, pubKeyBytes, _ := ctx.KMS().CreateAndExportPubKeyBytes(kms.X25519ECDHKWType)
+
+		// now get into a struct
+		var xPubKey model.X25519ECDHKWPub
+		err := json.Unmarshal(pubKeyBytes, &xPubKey)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		// send data to the token wallet
+		cfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgDIDAddAgentKeys, xPubKey)
+
 	}
 
 	// creating vcwallet instance for user with local KMS settings.
+	log.Infoln("opening wallet for", cfg.ControllerName)
 	w, err = wallet.New(cfg.ControllerName, ctx)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	// TODO the wallet should be closed eventually
+	walletAuthToken, err := w.Open(wallet.WithUnlockByPassphrase(pass))
+	if err != nil {
+		log.Fatalln("wallet cannot be opened", err)
+	}
 
 	return &SSIWallet{
 		cloudAgentURL:     cfg.CloudAgentPublicURL,
-		ControllerDidID:   fmt.Sprintf("did:cosmos:net:%s:%s", cfg.ChainID, cfg.ControllerDidID),
+		ControllerDID:     cfg.ControllerDID(),
 		cloudAgentWsURL:   cfg.CloudAgentWsURL,
+		cloudAgentAPI:     cfg.CloudAgentAPIURL(),
+		MediatorDID:       cfg.MediatorDID(),
 		w:                 w,
 		ctx:               ctx,
 		didExchangeClient: didExchangeClient,
 		routeClient:       routeClient,
 		messagingClient:   messagingClient,
+		walletAuthToken:   walletAuthToken,
 	}
 }
 
@@ -321,7 +353,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 			if len(params) > 1 && params[1] != "" {
 				err := cw.didExchangeClient.AcceptInvitation(
 					params[0],
-					cw.ControllerDidID,
+					cw.ControllerDID,
 					"new-with-public-did",
 					didexchange.WithRouterConnections(params[1]))
 				if err != nil {
@@ -330,7 +362,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 			} else {
 				err := cw.didExchangeClient.AcceptInvitation(
 					params[0],
-					cw.ControllerDidID,
+					cw.ControllerDID,
 					"new-wth",
 				)
 				if err != nil {
@@ -345,7 +377,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 			params := strings.Split(m.Payload.(string), " ")
 			err := cw.didExchangeClient.AcceptExchangeRequest(
 				params[0],
-				cw.ControllerDidID,
+				cw.ControllerDID,
 				"new-wth",
 				didexchange.WithRouterConnections(params[1]),
 			)
@@ -401,7 +433,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 			genericMsg.Type = "https://didcomm.org/generic/1.0/message"
 			genericMsg.Purpose = []string{"meeting"}
 			genericMsg.Message = params[1]
-			genericMsg.From = cw.ControllerDidID
+			genericMsg.From = cw.ControllerDID
 
 			rawBytes, _ := json.Marshal(genericMsg)
 
