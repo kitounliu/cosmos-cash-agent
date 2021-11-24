@@ -245,7 +245,13 @@ func executeCmd() {
 			appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgSendText, payload)
 
 		}
-	case "chain":
+	case "chain", "c":
+		switch s[1] {
+		case "address", "a":
+			appCfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgChainAddAddress, nil)
+		}
+
+
 		//hub.Notification <- "chain"
 	}
 

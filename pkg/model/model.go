@@ -1,7 +1,10 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/client/didexchange"
@@ -59,6 +62,46 @@ type X25519ECDHKWPub struct {
 	Type  string `json:"type"`
 }
 
-func GenericVerifiableCredential(data map[string]interface{}) {
-	tig
+// ChargedEnvelope this is used to send messages that should be sent back to the sender
+type ChargedEnvelope struct {
+	DataIn   interface{}
+	Callback func(message string)
 }
+
+// CREDENTIALS
+
+// AccountCredentialSubject represent a subject for a blockchain account
+type AccountCredentialSubject struct {
+	ID      string
+	Address string
+	Name    string
+}
+
+func ChainAccountCredential(address, did, name string) *verifiable.Credential {
+	return &verifiable.Credential{
+		Context: []string{
+			"https://www.w3.org/2018/credentials/v1",
+		},
+		ID: fmt.Sprint("cosmos:account:", address),
+		Types: []string{
+			"VerifiableCredential",
+			"CosmosAccountAddressCredential",
+		},
+		Subject: AccountCredentialSubject{
+			ID:      did,
+			Name:    name,
+			Address: address,
+		},
+		Issuer: verifiable.Issuer{
+			ID: did,
+		},
+		Issued:  util.NewTime(time.Now()),
+	}
+}
+
+func ChainAccountCredentialRaw(address, did, name string) json.RawMessage {
+	vc := ChainAccountCredential(address, did, name)
+	rawVC, _ := json.Marshal(vc)
+	return json.RawMessage(string(rawVC))
+}
+

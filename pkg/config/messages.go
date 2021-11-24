@@ -2,16 +2,16 @@ package config
 
 // MsgHub contains channels used by the components to send messages to each others
 type MsgHub struct {
-	Notification   chan AppMsg
-	AgentWalletIn  chan AppMsg
-	TokenWalletIn  chan AppMsg
+	Notification  chan AppMsg
+	AgentWalletIn chan AppMsg
+	TokenWalletIn chan AppMsg
 }
 
 func NewMsgHub() *MsgHub {
 	return &MsgHub{
-		Notification:   make(chan AppMsg, 4096),
-		AgentWalletIn:  make(chan AppMsg, 4096),
-		TokenWalletIn:  make(chan AppMsg, 4096),
+		Notification:  make(chan AppMsg, 4096),
+		AgentWalletIn: make(chan AppMsg, 4096),
+		TokenWalletIn: make(chan AppMsg, 4096),
 	}
 }
 
@@ -34,8 +34,8 @@ const (
 	MsgVCs
 	// MsgVCData returns the details of a verifiable credential
 	MsgVCData
-	// MsgAddVC add private verifiable credential to the wallet
-	MsgAddVC
+	// MsgIssueVC add private verifiable credential to the wallet
+	MsgIssueVC
 	//MsgContactAdded  used when a new contact si added
 	MsgContactAdded
 	// MsgUpdateContacts is used when updating all contacts in the list called every 30 seconds
@@ -63,6 +63,10 @@ const (
 	MsgGetConnectionStatus
 	// MsgDIDAddAgentKeys from aries to token to add the key agreement to the current did
 	MsgDIDAddAgentKeys
+	// MsgChainAddAddress generate a new address and expose it as a verifiable credential
+	MsgChainAddAddress
+	// MsgSSIAddVC add a vc to the ssi wallet
+	MsgSSIAddVC
 )
 
 // AppMsg are messages that are exchanged within the app
