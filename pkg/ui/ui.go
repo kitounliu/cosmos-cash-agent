@@ -131,17 +131,17 @@ func getCredentialsTab() *container.TabItem {
 	)
 	privateList.OnSelected = privateCredentialSelected
 	//
-	leftPanel := widget.NewAccordion(
-		widget.NewAccordionItem("Private Credentials", privateList),
-		widget.NewAccordionItem("Public Credentials", pubList),
-	)
+	leftPanel := container.NewMax(widget.NewAccordion(
+		widget.NewAccordionItem("Private Credentials",  container.NewMax(privateList)),
+		widget.NewAccordionItem("Public Credentials",  container.NewMax(pubList)),
+	))
 
 	// right panel
 	msgPanel := widget.NewLabelWithData(credentialData)
-	msgScroll := container.NewScroll(msgPanel)
+	rightPanel := container.NewScroll(msgPanel)
 
-	body := container.NewHSplit(leftPanel, msgScroll)
-	main := container.New(layout.NewMaxLayout(), body)
+	body := container.NewHSplit(leftPanel, rightPanel)
+	main := container.NewMax(body)
 
 	return container.NewTabItem("Credentials", main)
 }

@@ -130,7 +130,6 @@ func Client(cfg config.EdgeConfigSchema, password string) *ChainClient {
 			cfg.ControllerDidID,
 			cfg.CloudAgentPublicURL,
 			ki,
-			ssiwallet,
 		)
 		cc.BroadcastTx(msg)
 	}
@@ -144,6 +143,9 @@ func (cc *ChainClient) BroadcastTx(msgs ...sdk.Msg) {
 		log.Fatalln("failed tx", err)
 	}
 
+}
+
+func (cc *ChainClient) Close() {
 }
 
 // Init performs the client initialization
@@ -254,6 +256,14 @@ func (cc *ChainClient) Run(hub *config.MsgHub) {
 			log.Debugln("adding new key agreement to the did", cc.did)
 			pk := m.Payload.(model.X25519ECDHKWPub)
 			cc.DIDAddVerification(pk, didTypes.KeyAgreement, didTypes.AssertionMethod)
+		case config.MsgChainAddAddress:
+			// TODO GENERATE A NEW ACCOUNT ADDRESS
+			hub.AgentWalletIn <- config.NewAppMsg(config.MsgIssueVC, model.ChargedEnvelope{
+				DataIn: model.ChainAccountCredentialRaw(cc.acc.String(), cc.did.String(), fmt.Sprint("Main wallet: ", cc.acc.String()[0:10])),
+				Callback: func(signedVC string) {
+					hub.AgentWalletIn <- config.NewAppMsg(config.MsgSSIAddVC, signedVC)
+				},
+			})
 		}
 	}
 }

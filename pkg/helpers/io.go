@@ -11,7 +11,11 @@ func WriteJson(filePath string, v interface{}) {
 	if err != nil {
 		panic(err)
 	}
-	err = ioutil.WriteFile(filePath, data, 0600)
+	WriteData(filePath, data)
+}
+
+func WriteData(filePath string, data []byte) {
+	err := ioutil.WriteFile(filePath, data, 0600)
 	if err != nil {
 		panic(err)
 	}

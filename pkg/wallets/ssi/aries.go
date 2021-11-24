@@ -15,7 +15,6 @@ import (
 
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 
-	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/client/didexchange"
 	"github.com/hyperledger/aries-framework-go/pkg/client/mediator"
 	"github.com/hyperledger/aries-framework-go/pkg/client/messaging"
@@ -243,6 +242,10 @@ func (cw *SSIWallet) AddMediator(
 	log.Infoln("Mediator created")
 }
 
+func (cw *SSIWallet) Close() {
+	cw.w.Close()
+}
+
 // Run should be called as a goroutine, the parameters are:
 // State: the local state of the app that should be stored on disk
 // Hub: is the messages where the 3 components (ui, wallet, agent) can exchange messages
@@ -253,7 +256,14 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 	go func() {
 		for {
 			log.Infoln("ticker! retrieving verifiable credentials")
-			vcs := []string{}
+			var vcs []string
+			if credentials, err := cw.w.GetAll(cw.walletAuthToken, wallet.Credential); err == nil {
+				for _, vc := range credentials {
+					vcs = append(vcs, fmt.Sprint(vc))
+				}
+			} else {
+				log.Errorln("failed to read credentials from wallet", err)
+			}
 			hub.Notification <- config.NewAppMsg(config.MsgVCs, vcs)
 			<-t0.C
 		}
@@ -278,12 +288,37 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 		m := <-hub.AgentWalletIn
 		log.Debugln("received message", m)
 		switch m.Typ {
+		case config.MsgIssueVC:
+			// https://github.com/hyperledger/aries-framework-go/blob/main/docs/vc_wallet.md#add
+			ce := m.Payload.(model.ChargedEnvelope)
+			log.WithFields(log.Fields{"credential": ce.DataIn}).Debugln("adding credential")
+			// issue the credential
+			signedVC, err := cw.w.Issue(cw.walletAuthToken, ce.DataIn.(json.RawMessage), &wallet.ProofOptions{
+				Controller: cw.ControllerDID,
+			})
+			if err != nil {
+				log.Errorln("error issuing credential", err)
+				break
+			}
+			// now convert the vc to string
+			rawSignedVC, _ := signedVC.MarshalJSON()
+			log.Infof("issued credential %s", rawSignedVC)
+			// now trigger the function in the envelope
+			ce.Callback(string(rawSignedVC))
+		case config.MsgSSIAddVC:
+			vcStr := m.Payload.(string)
+			if err := cw.w.Add(cw.walletAuthToken, wallet.Credential, json.RawMessage(vcStr)); err != nil {
+				log.Errorln("error adding credential to the wallet", err)
+				break
+			}
+			log.Debugln("private credential added to the wallet")
+
 		case config.MsgVCData:
 			vcID := m.Payload.(string)
-			// TODO: retrieve the verifiable credential
-			// vc := cc.GetPublicVC(m.Payload.(string))
-			log.Debugln("AgentWallet received MsgVCData msg for ", vcID)
-			vc := struct{}{} // <-- fake credential
+			vc, err := cw.w.Get(cw.walletAuthToken, wallet.Credential, vcID)
+			if err != nil {
+				log.Errorln("cannot retrieve the credential ", vcID, err)
+			}
 			// always send to the notification channel for the UI
 			// handle the notification in the ui/handlers.go dispatcher function
 			hub.Notification <- config.NewAppMsg(m.Typ, vc)
@@ -325,20 +360,19 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 			)
 			var invite de.CreateInvitationResponse
 
-			err := json.Unmarshal([]byte(m.Payload.(string)), &invite.Invitation)
-			if err != nil {
-				println(err)
-			}
+			if err := json.Unmarshal([]byte(m.Payload.(string)), &invite.Invitation); err != nil {
+				log.Errorln("error unmarshalling the invitation in HsgHandleInvitation, requesting a new one")
 
-			if invite.Invitation == nil {
-				reqURL = fmt.Sprint(
-					// TODO: fix cloud agent is properly exposed on k8s cluster
-					cw.cloudAgentURL,
-					"/connections/create-invitation?public=did:cosmos:net:cosmoscash-testnet:mediatortestnetws1&label=BobMediatorEdgeAgent",
-				)
-				post(client, reqURL, nil, &invite)
+				if invite.Invitation == nil {
+					reqURL = fmt.Sprint(
+						// TODO: fix cloud agent is properly exposed on k8s cluster
+						cw.cloudAgentURL,
+						fmt.Sprintf("/connections/create-invitation?public=%s&label=TDMMediatorEdgeAgent", cw.MediatorDID),
+					)
+					post(client, reqURL, nil, &invite)
+				}
 			}
-
+			log.Infoln("invitation is ", invite)
 			// TODO: validate invitation is correct
 			connection := cw.HandleInvitation(invite.Invitation)
 
@@ -449,6 +483,7 @@ func (cw *SSIWallet) Run(hub *config.MsgHub) {
 // TODO remove in favor of public did exchange, here for test purposes
 func request(client *http.Client, method, url string, requestBody io.Reader, val interface{}) {
 	req, err := http.NewRequest(method, url, requestBody)
+	log.Debugln("executing http request", req)
 	if err != nil {
 		log.Errorln(err)
 	}
@@ -477,7 +512,7 @@ func post(client *http.Client, url string, requestBody, val interface{}) {
 func bitify(in interface{}) io.Reader {
 	v, err := json.Marshal(in)
 	if err != nil {
-		panic(err.Error())
+		log.Fatalln(err)
 	}
 	return bytes.NewBuffer(v)
 }
