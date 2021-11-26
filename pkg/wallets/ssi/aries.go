@@ -135,7 +135,7 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 	storePath, _ := config.GetAppData("aries_store")
 	storeProvider := leveldb.NewProvider(storePath)
 
-	statePath, _ := config.GetAppConfig("aries_state")
+	statePath, _ := config.GetAppData("aries_state")
 	stateProvider := leveldb.NewProvider(statePath)
 
 	// ws outbound
