@@ -2,8 +2,6 @@ package chain
 
 import (
 	"context"
-	"encoding/base64"
-	"github.com/allinbits/cosmos-cash-agent/pkg/model"
 	didTypes "github.com/allinbits/cosmos-cash/v2/x/did/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -19,24 +17,19 @@ func (cc *ChainClient) DIDDoc(didID string) didTypes.DidDocument {
 	return res.GetDidDocument()
 }
 
-// DIDAddVerification ad a verification to a did document
-func (cc *ChainClient) DIDAddVerification(xPubKey model.X25519ECDHKWPub, relationships ...string) {
-	vmID := cc.did.NewVerificationMethodID(xPubKey.Kid)
-	// now convert the base64 encoding
-	rawPubKey, err := base64.StdEncoding.DecodeString(xPubKey.X)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	verificationKeyAgreement := didTypes.NewVerification(
+// DIDAddVerification add verification to a a DID document
+func (cc *ChainClient) DIDAddVerification(VMIDFragment string, pubKey []byte, vmType didTypes.VerificationMaterialType, relationships ... string) {
+	vmID := cc.did.NewVerificationMethodID(VMIDFragment)
+	v := didTypes.NewVerification(
 		didTypes.NewVerificationMethod(
 			vmID,
 			cc.did,
 			didTypes.NewPublicKeyMultibase(
-				rawPubKey,
-				didTypes.DIDVMethodTypeX25519KeyAgreementKey2019),
+				pubKey,
+				vmType),
 		),
-		[]string{didTypes.KeyAgreement},
+		relationships,
 		nil,
 	)
-	cc.BroadcastTx(didTypes.NewMsgAddVerification(cc.did.String(), verificationKeyAgreement, cc.acc.String()))
+	cc.BroadcastTx(didTypes.NewMsgAddVerification(cc.did.String(), v, cc.acc.String()))
 }
