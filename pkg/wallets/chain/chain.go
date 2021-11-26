@@ -252,14 +252,14 @@ func (cc *ChainClient) Run(hub *config.MsgHub) {
 			licenseCredentialID := m.Payload.(string)
 			cot := cc.GetChainOfTrust(licenseCredentialID)
 			hub.Notification <- config.NewAppMsg(m.Typ, cot)
-		case config.MsgDIDAddAgentKeys:
-			log.Debugln("adding new key agreement to the did", cc.did)
-			pk := m.Payload.(model.X25519ECDHKWPub)
-			cc.DIDAddVerification(pk, didTypes.KeyAgreement, didTypes.AssertionMethod)
+		case config.MsgDIDAddVerificationMethod:
+			log.Debugln("adding new verification  method to the did", cc.did)
+			apk := m.Payload.(model.AriesPubKey)
+			cc.DIDAddVerification(apk.KeyID(), apk.PubKeyBytes(), apk.VerificationMaterialType(), apk.DIDRelationships()...)
 		case config.MsgChainAddAddress:
 			// TODO GENERATE A NEW ACCOUNT ADDRESS
 			hub.AgentWalletIn <- config.NewAppMsg(config.MsgIssueVC, model.ChargedEnvelope{
-				DataIn: model.ChainAccountCredentialRaw(cc.acc.String(), cc.did.String(), fmt.Sprint("Main wallet: ", cc.acc.String()[0:10])),
+				DataIn: model.ChainAccountCredentialRaw(cc.ctx.ChainID, cc.acc.String(), cc.did.String(), fmt.Sprint("Main wallet: ", cc.acc.String()[0:10])),
 				Callback: func(signedVC string) {
 					hub.AgentWalletIn <- config.NewAppMsg(config.MsgSSIAddVC, signedVC)
 				},

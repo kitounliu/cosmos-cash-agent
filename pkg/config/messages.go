@@ -61,8 +61,8 @@ const (
 	MsgAddMediator
 	// MsgGetConnectionStatus gets the connection status of a contact
 	MsgGetConnectionStatus
-	// MsgDIDAddAgentKeys from aries to token to add the key agreement to the current did
-	MsgDIDAddAgentKeys
+	// MsgDIDAddVerificationMethod add a verification method to a DID
+	MsgDIDAddVerificationMethod
 	// MsgChainAddAddress generate a new address and expose it as a verifiable credential
 	MsgChainAddAddress
 	// MsgSSIAddVC add a vc to the ssi wallet

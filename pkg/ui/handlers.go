@@ -9,6 +9,7 @@ import (
 	"github.com/allinbits/cosmos-cash-agent/pkg/model"
 	vcTypes "github.com/allinbits/cosmos-cash/v2/x/verifiable-credential/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	log "github.com/sirupsen/logrus"
 	"strings"
 
@@ -84,13 +85,19 @@ func dispatcher(in chan config.AppMsg) {
 				credentialIDs = append(credentialIDs, c.Id)
 			}
 			publicCredentials.Set(credentialIDs)
+		case config.MsgVCs:
+			// populate private credentials
+			var credentialIDs []string
+			for _, c := range m.Payload.([]verifiable.Credential) {
+				credentialIDs = append(credentialIDs, c.ID)
+			}
+			privateCredentials.Set(credentialIDs)
 		case config.MsgVCData, config.MsgPublicVCData:
 			if m.Payload == nil {
 				credentialData.Set(string("No data"))
 				continue
 			}
-			vcs := m.Payload.(vcTypes.VerifiableCredential)
-			data, _ := json.MarshalIndent(vcs, "", " ")
+			data, _ := json.MarshalIndent(m.Payload, "", " ")
 			credentialData.Set(string(data))
 		case config.MsgMarketplaces:
 			var mks []string
@@ -250,7 +257,6 @@ func executeCmd() {
 		case "address", "a":
 			appCfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgChainAddAddress, nil)
 		}
-
 
 		//hub.Notification <- "chain"
 	}
