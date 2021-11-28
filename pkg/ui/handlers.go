@@ -259,6 +259,15 @@ func executeCmd() {
 		}
 
 		//hub.Notification <- "chain"
+	case "debug", "d":
+		switch s[1] {
+		case "show-license-credentials", "lc":
+			ls := model.LicenseSchema("MICAEMI", "Dredd")
+			RenderCredentialSchema("Please supply license information",ls, func(m map[string]string) {
+				// todo Create verifiable Credential
+
+			})
+		}
 	}
 
 	// FINALLY RECORD THE MESSAGE IN THE CHAT
