@@ -15,7 +15,7 @@
 
 OPTS="--node https://cosmos-cash.app.beta.starport.cloud:443 --chain-id cosmoscash-testnet"
 FAUCET=https://faucet.cosmos-cash.app.beta.starport.cloud
-MEDIATOR=mediatortestnetws1
+MEDIATOR=mediatortestnetws3
 
 cosmos-cashd keys add $MEDIATOR
 curl -X POST -d "{\"address\": \"$(cosmos-cashd keys show $MEDIATOR -a)\"}" $FAUCET

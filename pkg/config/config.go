@@ -32,7 +32,7 @@ func NewEdgeConfigSchema(controllerName string) EdgeConfigSchema {
 		FaucetURL:            helpers.Env("FAUCET_URL", "https://faucet.cosmos-cash.app.beta.starport.cloud"),
 		ChainID:              helpers.Env("CHAIN_ID", "cosmoscash-testnet"),
 		CloudAgentWsURL:      helpers.Env("AGENT_WS_URL", "https://ws.agent.cosmos-cash.app.beta.starport.cloud"),
-		CloudAgentPublicURL:  helpers.Env("AGENT_PUBLIC_URL", "https://in.agent.cosmos-cash.app.beta.starport.cloud"),
+		CloudAgentPublicURL:  helpers.Env("AGENT_PUBLIC_URL", "http://localhost:8090"),
 		CosmosDIDResolverURL: helpers.Env("RESOLVER_URL", "https://resolver-driver.cosmos-cash.app.beta.starport.cloud/identifier/aries"),
 		ControllerDidID:      uuid.New().String(),
 		// runtime
@@ -55,21 +55,19 @@ type EdgeConfigSchema struct {
 }
 
 // ControllerDID returns the current user did
-func (ecs EdgeConfigSchema) ControllerDID() string{
+func (ecs EdgeConfigSchema) ControllerDID() string {
 	return fmt.Sprintf("did:cosmos:net:%s:%s", ecs.ChainID, ecs.ControllerDidID)
 }
 
 // MediatorDID returns the cloud agent mediator did
-func (ecs EdgeConfigSchema) MediatorDID() string{
-	return "did:cosmos:net:cosmoscash-testnet:a9a67d0e-4d34-11ec-a24d-902e16d09958"
+func (ecs EdgeConfigSchema) MediatorDID() string {
+	return "did:cosmos:net:cosmoscash-testnet:mediatortestnetws3"
 }
 
 // CloudAgentAPIURL returns the cloud agent mediator did
-func (ecs EdgeConfigSchema) CloudAgentAPIURL() string{
+func (ecs EdgeConfigSchema) CloudAgentAPIURL() string {
 	return "https://agent.cosmos-cash.app.beta.starport.cloud"
 }
-
-
 
 func GetAppData(subPath ...string) (string, bool) {
 	v := []string{"data"}
