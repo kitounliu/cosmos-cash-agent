@@ -155,7 +155,6 @@ func getCredentialsTab() *container.TabItem {
 	)
 
 	// right panel
-
 	msgPanel := widget.NewEntryWithData(credentialData)
 	rightPanel := container.NewScroll(msgPanel)
 
