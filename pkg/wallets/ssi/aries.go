@@ -2,6 +2,7 @@ package ssi
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/allinbits/cosmos-cash-agent/pkg/model"
@@ -196,21 +197,24 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 
 	if genereateKeys {
 		log.Infoln("creating keys for", cfg.ControllerName)
-		var kp *wallet.KeyPair
 		// create a key to perform keyAgreement between agent
-		kp, err = w.CreateKeyPair(walletAuthToken, kms.X25519ECDHKWType)
+		keyID, pubKeyBytes, err := ctx.KMS().CreateAndExportPubKeyBytes(kms.X25519ECDHKWType)
 		if err != nil {
 			log.Fatalln("cannot create X25519ECDHKWType key")
+		}
+		kp := &wallet.KeyPair{
+			KeyID:     keyID,
+			PublicKey: base64.RawURLEncoding.EncodeToString(pubKeyBytes),
 		}
 		// send data to the token wallet
 		cfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgDIDAddVerificationMethod, model.X25519{KeyPair: kp})
 
 		// create a key to sign credentials
-		kp, err = w.CreateKeyPair(walletAuthToken, kms.ED25519Type)
+		wkp, err := w.CreateKeyPair(walletAuthToken, kms.ED25519Type)
 		if err != nil {
 			log.Fatalln("cannot create ED25519Type key")
 		}
-		cfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgDIDAddVerificationMethod, model.ED25519{KeyPair: kp})
+		cfg.RuntimeMsgs.TokenWalletIn <- config.NewAppMsg(config.MsgDIDAddVerificationMethod, model.ED25519{KeyPair: wkp})
 	}
 
 	return &SSIWallet{
@@ -294,7 +298,10 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			if err != nil {
 				log.Fatalln(err)
 			}
-			log.Infoln("queried connections", connections)
+			for _, connection := range connections {
+				log.Infoln("queried connections", connection.ConnectionID)
+			}
+
 			hub.Notification <- config.NewAppMsg(config.MsgUpdateContacts, connections)
 			<-t1.C
 		}
@@ -356,6 +363,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 				}
 				jsonStr, _ := json.Marshal(inv)
 				log.Debugln("create invitation reply", string(jsonStr))
+				fmt.Println(string(jsonStr))
 			} else {
 				inv, err := s.didExchangeClient.CreateInvitation(
 					"bob-alice-conn-direct",
@@ -379,14 +387,12 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			if err := json.Unmarshal([]byte(m.Payload.(string)), &invite.Invitation); err != nil {
 				log.Errorln("error unmarshalling the invitation in HsgHandleInvitation, requesting a new one")
 
-				if invite.Invitation == nil {
-					reqURL = fmt.Sprint(
-						// TODO: fix cloud agent is properly exposed on k8s cluster
-						s.cloudAgentURL,
-						fmt.Sprintf("/connections/create-invitation?public=%s&label=TDMMediatorEdgeAgent", s.MediatorDID),
-					)
-					post(client, reqURL, nil, &invite)
-				}
+				reqURL = fmt.Sprint(
+					// TODO: fix cloud agent is properly exposed on k8s cluster
+					"http://localhost:8090",
+					fmt.Sprintf("/connections/create-invitation?public=%s&label=TDMMediatorEdgeAgent", s.MediatorDID),
+				)
+				post(client, reqURL, nil, &invite)
 			}
 			log.Infoln("invitation is ", invite)
 			// TODO: validate invitation is correct
@@ -403,7 +409,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			if len(params) > 1 && params[1] != "" {
 				err := s.didExchangeClient.AcceptInvitation(
 					params[0],
-					s.ControllerDID,
+					"",
 					"new-with-public-did",
 					didexchange.WithRouterConnections(params[1]))
 				if err != nil {
@@ -412,7 +418,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			} else {
 				err := s.didExchangeClient.AcceptInvitation(
 					params[0],
-					s.ControllerDID,
+					"",
 					"new-wth",
 				)
 				if err != nil {
@@ -427,7 +433,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			params := strings.Split(m.Payload.(string), " ")
 			err := s.didExchangeClient.AcceptExchangeRequest(
 				params[0],
-				s.ControllerDID,
+				"",
 				"new-wth",
 				didexchange.WithRouterConnections(params[1]),
 			)
