@@ -389,7 +389,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 
 				reqURL = fmt.Sprint(
 					// TODO: fix cloud agent is properly exposed on k8s cluster
-					"http://localhost:8090",
+					s.cloudAgentAPI,
 					fmt.Sprintf("/connections/create-invitation?public=%s&label=TDMMediatorEdgeAgent", s.MediatorDID),
 				)
 				post(client, reqURL, nil, &invite)
@@ -487,7 +487,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			var genericMsg genericChatMsg
 			genericMsg.ID = "12123123213213"
 			genericMsg.Type = "https://didcomm.org/generic/1.0/message"
-			genericMsg.Purpose = []string{"meeting"}
+			genericMsg.Purpose = []string{"meeting", "appointment", "event"}
 			genericMsg.Message = params[1]
 			genericMsg.From = s.ControllerDID
 

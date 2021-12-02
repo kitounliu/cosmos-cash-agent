@@ -24,4 +24,4 @@ cosmos-cashd tx did create-did $MEDIATOR --from $MEDIATOR $OPTS -y
 sleep 2
 cosmos-cashd query did did did:cosmos:net:cosmoscash-testnet:$MEDIATOR $OPTS
 sleep 3
-cosmos-cashd tx did link-aries-agent $MEDIATOR http://localhost:8090 ws://localhost:8092 --from $MEDIATOR $OPTS -y
+cosmos-cashd tx did link-aries-agent $MEDIATOR https://agent.cosmos-cash.app.beta.starport.cloud/ https://agent.cosmos-cash.app.beta.starport.cloud --from $MEDIATOR $OPTS -y
