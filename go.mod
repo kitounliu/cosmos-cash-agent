@@ -9,7 +9,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.44.3
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.7
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20211201185059-733a3370f501
 	github.com/hyperledger/aries-framework-go/component/storage/leveldb v0.0.0-20210923135755-9446ee81c3b4
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210820175050-dcc7a225178d
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210820175050-dcc7a225178d

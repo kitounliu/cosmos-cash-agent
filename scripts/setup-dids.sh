@@ -15,7 +15,7 @@
 
 OPTS="--node https://cosmos-cash.app.beta.starport.cloud:443 --chain-id cosmoscash-testnet"
 FAUCET=https://faucet.cosmos-cash.app.beta.starport.cloud
-MEDIATOR=mediatortestnetws3
+MEDIATOR=mediatortestnetws9
 
 cosmos-cashd keys add $MEDIATOR
 curl -X POST -d "{\"address\": \"$(cosmos-cashd keys show $MEDIATOR -a)\"}" $FAUCET
@@ -24,4 +24,5 @@ cosmos-cashd tx did create-did $MEDIATOR --from $MEDIATOR $OPTS -y
 sleep 2
 cosmos-cashd query did did did:cosmos:net:cosmoscash-testnet:$MEDIATOR $OPTS
 sleep 3
-cosmos-cashd tx did link-aries-agent $MEDIATOR https://agent.cosmos-cash.app.beta.starport.cloud/ https://agent.cosmos-cash.app.beta.starport.cloud --from $MEDIATOR $OPTS -y
+cosmos-cashd tx did link-aries-agent $MEDIATOR https://agent.cosmos-cash.app.beta.starport.cloud wss://ws.agent.cosmos-cash.app.beta.starport.cloud --from $MEDIATOR $OPTS -y
+#cosmos-cashd tx did link-aries-agent $MEDIATOR http://localhost:8090 ws://localhost:8092 --from $MEDIATOR $OPTS -y
