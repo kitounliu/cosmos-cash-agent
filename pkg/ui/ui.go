@@ -81,6 +81,11 @@ func getMessagesTab() *container.TabItem {
 	//msgPanel := container.NewVBox()
 	msgScroll := container.NewScroll(msgList)
 
+	input := widget.NewEntryWithData(userCommand)
+	input.OnSubmitted = func(_ string) {
+		executeCmd()
+	}
+
 	// footer stuff
 	rightPanel := container.NewBorder(
 		nil,
@@ -217,7 +222,7 @@ func getLogTab() *container.TabItem {
 	return container.NewTabItem("Logs", main)
 }
 
-func RenderCredentialSchema(title string, schema model.CredentialSchema, onSubmit func(map[string]string)) {
+func RenderPresentationRequest(title string, schema model.PresentationRequest, onSubmit func(map[string]string)) {
 	answers := make(map[string]binding.String)
 
 	var popUp *widget.PopUp
