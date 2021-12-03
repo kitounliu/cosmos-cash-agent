@@ -67,6 +67,8 @@ const (
 	MsgChainAddAddress
 	// MsgSSIAddVC add a vc to the ssi wallet
 	MsgSSIAddVC
+	// MsgClipboard save stuff into the use clipboard
+	MsgClipboard
 )
 
 // AppMsg are messages that are exchanged within the app

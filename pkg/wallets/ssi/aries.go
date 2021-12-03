@@ -363,6 +363,8 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 				}
 				jsonStr, _ := json.Marshal(inv)
 				log.Debugln("create invitation reply", string(jsonStr))
+				// copy the invitation to clipboard
+				hub.Notification <- config.NewAppMsg(config.MsgClipboard, string(jsonStr))
 				fmt.Println(string(jsonStr))
 			} else {
 				inv, err := s.didExchangeClient.CreateInvitation(
