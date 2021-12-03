@@ -42,7 +42,7 @@ func Render(cfg *config.EdgeConfigSchema) {
 	})
 
 	// run the dispatcher that updates the ui
-	go dispatcher(cfg.RuntimeMsgs.Notification)
+	go dispatcher(myWindow, cfg.RuntimeMsgs.Notification)
 	// lanuch the app
 	myWindow.Resize(fyne.NewSize(940, 660))
 	myWindow.ShowAndRun()
@@ -75,6 +75,11 @@ func getMessagesTab() *container.TabItem {
 	//msgPanel := container.NewVBox()
 	msgScroll := container.NewScroll(msgList)
 
+	input := widget.NewEntryWithData(userCommand)
+	input.OnSubmitted = func(_ string) {
+		executeCmd()
+	}
+
 	// footer stuff
 	rightPanel := container.NewBorder(
 		nil,
@@ -83,7 +88,7 @@ func getMessagesTab() *container.TabItem {
 			nil,
 			nil,
 			widget.NewButtonWithIcon("", theme.MailSendIcon(), executeCmd),
-			widget.NewEntryWithData(userCommand),
+			input,
 		),
 		nil,
 		nil,
@@ -149,7 +154,6 @@ func getCredentialsTab() *container.TabItem {
 	)
 
 	// right panel
-
 
 	msgPanel := widget.NewEntryWithData(credentialData)
 	rightPanel := container.NewScroll(msgPanel)

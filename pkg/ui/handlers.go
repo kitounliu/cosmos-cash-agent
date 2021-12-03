@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
@@ -41,9 +42,9 @@ var (
 
 // dispatcher this reads notifications and updates the
 // data binding
-func dispatcher(in chan config.AppMsg) {
+func dispatcher(window fyne.Window, in chan config.AppMsg) {
 	state = NewState()
-	// first load the statate
+	// first load the state
 	// write the state on file
 	statePath, exists := config.GetAppData("state.json")
 	if !exists {
@@ -63,6 +64,8 @@ func dispatcher(in chan config.AppMsg) {
 	for {
 		m := <-in
 		switch m.Typ {
+		case config.MsgClipboard:
+			window.Clipboard().SetContent(m.Payload.(string))
 		case config.MsgSaveState:
 			log.Debugln("saving state to file", statePath)
 			helpers.WriteJson(statePath, state)
@@ -193,6 +196,8 @@ func contactSelected(iID widget.ListItemID) {
 		msgs[i] = msg.String()
 	}
 	messages.Set(msgs)
+	// copy to clipboard the name
+	appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(config.MsgClipboard, name)
 	// update selected contact index
 	state.SelectedContact = iID
 }
