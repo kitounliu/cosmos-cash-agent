@@ -11,6 +11,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -234,15 +235,17 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 
 func (s *SSIWallet) HandleInvitation(
 	invitation *didexchange.Invitation,
-) *didexchange.Connection {
+) (connection *didexchange.Connection) {
 	connectionID, err := s.didExchangeClient.HandleInvitation(invitation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Errorln(err)
+		return
 	}
 
-	connection, err := s.didExchangeClient.GetConnection(connectionID)
+	connection, err = s.didExchangeClient.GetConnection(connectionID)
 	if err != nil {
-		log.Fatalln(err)
+		log.Errorln(err)
+		return
 	}
 	log.WithFields(log.Fields{"connectionID": connectionID}).Infoln("Connection created", connection)
 	return connection
@@ -359,7 +362,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 					didexchange.WithRouterConnectionID(m.Payload.(string)),
 				)
 				if err != nil {
-					log.Fatalln(err)
+					log.Errorln(err)
 				}
 				jsonStr, _ := json.Marshal(inv)
 				log.Debugln("create invitation reply", string(jsonStr))
@@ -415,7 +418,8 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 					"new-with-public-did",
 					didexchange.WithRouterConnections(params[1]))
 				if err != nil {
-					log.Fatalln(err)
+					log.Errorln("AcceptInvitation", err)
+					break
 				}
 			} else {
 				err := s.didExchangeClient.AcceptInvitation(
@@ -424,7 +428,8 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 					"new-wth",
 				)
 				if err != nil {
-					log.Fatalln(err)
+					log.Errorln("AcceptInvitation", err)
+					break
 				}
 			}
 		case config.MsgApproveRequest:
@@ -440,7 +445,8 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 				didexchange.WithRouterConnections(params[1]),
 			)
 			if err != nil {
-				log.Fatalln(err)
+				log.Errorln("AcceptExchangeRequest", err)
+				break
 			}
 
 		case config.MsgAddMediator:
@@ -463,7 +469,8 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			// TODO: validate invitation is correct
 			connection, err := s.didExchangeClient.GetConnection(connID)
 			if err != nil {
-				log.Fatalln(err)
+				log.Errorln("GetConnection", err)
+				break
 			}
 			sb.WriteString("ConnectionID: " + connection.ConnectionID + "\n")
 			sb.WriteString("Status: " + connection.State + "\n")
@@ -487,7 +494,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			params := strings.Split(m.Payload.(string), " ")
 
 			var genericMsg genericChatMsg
-			genericMsg.ID = "12123123213213"
+			genericMsg.ID = fmt.Sprint(rand.Float64())
 			genericMsg.Type = "https://didcomm.org/generic/1.0/message"
 			genericMsg.Purpose = []string{"meeting", "appointment", "event"}
 			genericMsg.Message = params[1]
@@ -497,7 +504,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 
 			resp, err := s.messagingClient.Send(rawBytes, messaging.SendByConnectionID(params[0]))
 			if err != nil {
-				log.Fatalln(err)
+				log.Errorln("SendByConnectionID", err)
 			}
 			log.Debugln("message response is", resp)
 		}
@@ -522,7 +529,9 @@ func request(client *http.Client, method, url string, requestBody io.Reader, val
 	if err != nil {
 		log.Errorln(err)
 	}
-	json.Unmarshal(bodyBytes, &val)
+	if err := json.Unmarshal(bodyBytes, &val); err != nil {
+		log.Errorln(err)
+	}
 }
 
 func post(client *http.Client, url string, requestBody, val interface{}) {
@@ -536,7 +545,7 @@ func post(client *http.Client, url string, requestBody, val interface{}) {
 func bitify(in interface{}) io.Reader {
 	v, err := json.Marshal(in)
 	if err != nil {
-		log.Fatalln(err)
+		log.Errorln(err)
 	}
 	return bytes.NewBuffer(v)
 }
