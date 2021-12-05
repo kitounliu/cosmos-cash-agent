@@ -37,7 +37,7 @@ var (
 	marketplaces    = binding.NewStringList()
 	marketplaceData = binding.NewString()
 	// logs
-	logData = binding.NewString()
+	logData = binding.NewStringList()
 )
 
 // dispatcher this reads notifications and updates the

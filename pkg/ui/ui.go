@@ -20,6 +20,7 @@ func Render(cfg *config.EdgeConfigSchema) {
 	myApp := app.New()
 	myWindow := myApp.NewWindow(cfg.ControllerName)
 
+
 	// main content
 	tabs := container.NewAppTabs(
 		getMessagesTab(),
@@ -212,7 +213,21 @@ func getMarketPlaceTab() *container.TabItem {
 }
 
 func getLogTab() *container.TabItem {
-	msgPanel := widget.NewLabelWithData(logData)
-	main := container.NewScroll(msgPanel)
+	list := widget.NewListWithData(
+		logData,
+		func() fyne.CanvasObject {
+			return widget.NewLabel("")
+		},
+		func(di binding.DataItem, o fyne.CanvasObject) {
+			o.(*widget.Label).Bind(di.(binding.String))
+		},
+	)
+	list.OnSelected = func(id widget.ListItemID) {
+		entry, _ := logData.GetValue(id)
+		// copy to clipboard the name
+		appCfg.RuntimeMsgs.Notification <- config.NewAppMsg(config.MsgClipboard, entry)
+		list.UnselectAll()
+	}
+	main := container.NewMax(container.NewScroll(list))
 	return container.NewTabItem("Logs", main)
 }

@@ -25,6 +25,8 @@ func init() {
 	}
 	log.SetOutput(file)
 
+	log.AddHook(ui.NewHook(log.InfoLevel, log.ErrorLevel, log.WarnLevel, log.DebugLevel))
+
 	// Only log the warning severity or above.
 	log.SetLevel(log.DebugLevel)
 	// separate executions
