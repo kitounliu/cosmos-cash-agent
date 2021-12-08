@@ -21,6 +21,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/client/didexchange"
 	"github.com/hyperledger/aries-framework-go/pkg/client/mediator"
 	"github.com/hyperledger/aries-framework-go/pkg/client/messaging"
+
 	de "github.com/hyperledger/aries-framework-go/pkg/controller/command/didexchange"
 	"github.com/hyperledger/aries-framework-go/pkg/didcomm/common/service"
 	"github.com/hyperledger/aries-framework-go/pkg/didcomm/messaging/msghandler"
@@ -35,11 +36,13 @@ import (
 )
 
 type genericChatMsg struct {
-	ID      string   `json:"id"`
-	Type    string   `json:"type"`
-	Purpose []string `json:"~purpose"`
-	Message string   `json:"message"`
-	From    string   `json:"from"`
+	ID           string   `json:"@id"`
+	Type         string   `json:"@type"`
+	Purpose      []string `json:"~purpose"`
+	Message      string   `json:"message"`
+	From         string   `json:"from"`
+	SenderDID    string   `json:"senderDID"`
+	RecipientDID string   `json:"recipientDID"`
 }
 
 var (
@@ -65,6 +68,10 @@ type SSIWallet struct {
 
 func (s SSIWallet) GetContext() *context.Provider {
 	return s.ctx
+}
+
+func (s SSIWallet) GetMessagingClient() *messaging.Client {
+	return s.messagingClient
 }
 
 func createDIDExchangeClient(ctx *context.Provider) *didexchange.Client {
@@ -108,16 +115,17 @@ func createRoutingClient(ctx *context.Provider) *mediator.Client {
 	return routeClient
 }
 
-func createMessagingClient(ctx *context.Provider) *messaging.Client {
-	n := LocalNotifier{}
-	registrar := msghandler.NewRegistrar()
+func createMessagingClient(
+	ctx *context.Provider,
+	registrar *msghandler.Registrar,
+	runtimeMsgs *config.MsgHub,
+) *messaging.Client {
+	n := NewNotifier(ctx, runtimeMsgs)
 
 	msgClient, err := messaging.New(ctx, registrar, n)
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	//genericMsg.Type = "https://didcomm.org/generic/1.0/message"
 	msgType := "https://didcomm.org/generic/1.0/message"
 	purpose := []string{"meeting", "appointment", "event"}
 	name := "generic-message"
@@ -126,8 +134,6 @@ func createMessagingClient(ctx *context.Provider) *messaging.Client {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	services := msgClient.Services()
-	println(services[0])
 
 	return msgClient
 }
@@ -151,18 +157,21 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	registrar := msghandler.NewRegistrar()
 
 	// create framework
 	framework, err := aries.New(
 		aries.WithStoreProvider(storeProvider),
 		aries.WithProtocolStateStoreProvider(stateProvider),
 		aries.WithOutboundTransports(transports...),
+		aries.WithMessageServiceProvider(registrar),
 		aries.WithTransportReturnRoute("all"),
 		aries.WithKeyType(kms.ED25519Type),
 		aries.WithKeyAgreementType(kms.X25519ECDHKWType),
 		aries.WithVDR(httpVDR),
 		//	aries.WithVDR(CosmosVDR{}),
 	)
+
 	// get the context
 	ctx, err := framework.Context()
 	if err != nil {
@@ -171,7 +180,7 @@ func Agent(cfg config.EdgeConfigSchema, pass string) *SSIWallet {
 
 	didExchangeClient := createDIDExchangeClient(ctx)
 	routeClient := createRoutingClient(ctx)
-	messagingClient := createMessagingClient(ctx)
+	messagingClient := createMessagingClient(ctx, registrar, cfg.RuntimeMsgs)
 
 	genereateKeys := false
 	// creating wallet profile using local KMS passphrase
@@ -296,13 +305,9 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 	t1 := time.NewTicker(10 * time.Second)
 	go func() {
 		for {
-			// TODO handle contacts
 			connections, err := s.didExchangeClient.QueryConnections(&didexchange.QueryConnectionsParams{})
 			if err != nil {
 				log.Fatalln(err)
-			}
-			for _, connection := range connections {
-				log.Infoln("queried connections", connection.ConnectionID)
 			}
 
 			hub.Notification <- config.NewAppMsg(config.MsgUpdateContacts, connections)
@@ -353,7 +358,6 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 				"AgentWallet received MsgHandleInvitation msg for ",
 				m.Payload.(string),
 			)
-			// TODO: validate invitation is correct
 			var inv didexchange.Invitation
 			var jsonStr string
 			if m.Payload.(string) != "" {
@@ -393,7 +397,6 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 				log.Errorln("error unmarshalling the invitation in HsgHandleInvitation, requesting a new one")
 
 				reqURL = fmt.Sprint(
-					// TODO: fix cloud agent is properly exposed on k8s cluster
 					s.cloudAgentAPI,
 					fmt.Sprintf("/connections/create-invitation?public=%s&label=TDMMediatorEdgeAgent", s.MediatorDID),
 				)
@@ -492,6 +495,11 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			)
 
 			params := strings.Split(m.Payload.(string), " ")
+			connection, err := s.didExchangeClient.GetConnection(params[0])
+			if err != nil {
+				log.Errorln("GetConnection", err)
+				break
+			}
 
 			var genericMsg genericChatMsg
 			genericMsg.ID = fmt.Sprint(rand.Float64())
@@ -499,6 +507,8 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			genericMsg.Purpose = []string{"meeting", "appointment", "event"}
 			genericMsg.Message = params[1]
 			genericMsg.From = s.ControllerDID
+			genericMsg.SenderDID = connection.MyDID
+			genericMsg.RecipientDID = connection.TheirDID
 
 			rawBytes, _ := json.Marshal(genericMsg)
 
@@ -550,7 +560,5 @@ func bitify(in interface{}) io.Reader {
 	return bytes.NewBuffer(v)
 }
 
-// AcceptContactRequest
-// SendContactRequest
 // AcceptVC
 // RequestVC

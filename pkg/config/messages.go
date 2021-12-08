@@ -69,6 +69,8 @@ const (
 	MsgSSIAddVC
 	// MsgClipboard save stuff into the use clipboard
 	MsgClipboard
+	// MsgDeleteConnection deletes a connections from the aries agent
+	MsgDeleteConnection
 )
 
 // AppMsg are messages that are exchanged within the app
