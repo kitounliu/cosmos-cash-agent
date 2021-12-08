@@ -48,6 +48,7 @@ func main() {
 	// aries wallet creation
 	// https://github.com/hyperledger/aries-framework-go/blob/main/docs/vc_wallet.md
 	agent := ssi.Agent(cfg, pwd)
+
 	go agent.Run(cfg.RuntimeMsgs)
 
 	// cosmos-sdk keystore
