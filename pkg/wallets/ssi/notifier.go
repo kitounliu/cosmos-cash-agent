@@ -31,14 +31,18 @@ func NewNotifier(ctx *context.Provider, RuntimeMsgs *config.MsgHub) *LocalNotifi
 func (n LocalNotifier) Notify(topic string, message []byte) error {
 	log.Infoln("local notification:", topic, message)
 
-	var genericMsg *genericChatMsg
+	var genericMsg struct {
+		TheirDID   string         `json:"theirdid"`
+		MyDID      string         `json:"mydid"`
+		GenericMsg genericChatMsg `json:"message"`
+	}
 
-	if err := json.Unmarshal(message, genericMsg); err != nil {
+	if err := json.Unmarshal(message, &genericMsg); err != nil {
 		log.Errorln(err)
 		return err
 	}
 
-	connection, err := n.ConnectionLookup.GetConnectionRecordByTheirDID(genericMsg.SenderDID)
+	connection, err := n.ConnectionLookup.GetConnectionRecordByTheirDID(genericMsg.GenericMsg.SenderDID)
 	if err != nil {
 		log.Errorln(err)
 		return err
@@ -46,7 +50,7 @@ func (n LocalNotifier) Notify(topic string, message []byte) error {
 
 	n.RuntimeMsgs.Notification <- config.NewAppMsg(
 		config.MsgTextReceived,
-		model.NewTextMessage(connection.ConnectionID, genericMsg.From, genericMsg.Message),
+		model.NewTextMessage(connection.ConnectionID, genericMsg.GenericMsg.From, genericMsg.GenericMsg.Message),
 	)
 
 	return nil
