@@ -111,10 +111,27 @@ func getMessagesTab() *container.TabItem {
 
 func getDashboardTab() *container.TabItem {
 
-	main := container.NewVBox(
-		widget.NewLabel(fmt.Sprintf("Wallet owner: \n%s", appCfg.ControllerName)),
-		widget.NewLabel(fmt.Sprintf("Wallet DID ID: \ndid:cosmos:net:%s:%s", appCfg.ChainID, appCfg.ControllerDidID)),
-	)
+	ml := widget.NewMultiLineEntry()
+
+	ml.SetText(fmt.Sprintf(`
+Wallet owner: 
+%s
+
+Wallet DID ID: 
+%s
+
+Resolver Driver: 
+https://resolver-driver.cosmos-cash.app.beta.starport.cloud/
+
+Universal resolver UI: 
+https://uniresolver.cosmos-cash.app.beta.starport.cloud/
+
+CLI resolver command:
+cosmos-cashd query did did %s --node https://rpc.cosmos-cash.app.beta.starport.cloud:443 --chain-id cosmoscash-testnet --output json | jq
+
+`, appCfg.ControllerName, appCfg.ControllerDID(), appCfg.ControllerDID()))
+
+	main := container.NewMax(ml)
 
 	return container.NewTabItem("Dashboard", main)
 }
@@ -238,4 +255,3 @@ func getLogTab() *container.TabItem {
 	main := container.NewMax(container.NewScroll(list))
 	return container.NewTabItem("Logs", main)
 }
-
