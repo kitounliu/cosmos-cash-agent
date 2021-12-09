@@ -256,9 +256,9 @@ func executeCmd() {
 
 	// FINALLY RECORD THE MESSAGE IN THE CHAT
 	// if no contact is selected move on
-	if state.SelectedContact < 0 {
-		return
-	}
+	//if state.SelectedContact < 0 {
+	//	return
+	//}
 
 	// parse the command
 	s := strings.Split(val, " ")
