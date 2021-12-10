@@ -2,8 +2,9 @@ package model
 
 import (
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // PresentationRequest represent a verifiable credential schema
@@ -13,7 +14,6 @@ type PresentationRequest interface {
 
 // ParsePresentationRequest try to parse a string to a presentation
 func ParsePresentationRequest(data string) (v PresentationRequest, isPresentation bool) {
-
 
 	options := []PresentationRequest{
 		&PaymentRequest{},
@@ -144,6 +144,6 @@ func NewEMoneyApplicationRequest(subjectDID string) EMoneyApplicationRequest {
 	return EMoneyApplicationRequest{
 		SubjectDID: subjectDID,
 		IsVerified: true,
-		Credential: "RegulatorCredential",
+		Credential: "UserCredential",
 	}
 }

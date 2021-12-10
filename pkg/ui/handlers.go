@@ -4,8 +4,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/wealdtech/go-merkletree"
 	"strings"
+
+	"github.com/wealdtech/go-merkletree"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/data/binding"
@@ -113,8 +114,7 @@ func dispatcher(window fyne.Window, in chan config.AppMsg) {
 
 		case config.MsgTextReceived:
 			tm := m.Payload.(model.TextMessage)
-			msgHistory, _ := state.Messages[tm.Channel]
-
+			msgHistory := state.Messages[tm.Channel]
 			msgHistory = append(msgHistory, tm) // refresh view
 			state.Messages[tm.Channel] = msgHistory
 
@@ -312,7 +312,10 @@ func executeCmd() {
 			switch s[2] {
 			case "final":
 			case "f":
-				contact, _ := getContact(state.SelectedContact)
+				contact, err := getContact(state.SelectedContact)
+				if err != nil {
+					break
+				}
 				payload := contact.Connection.ConnectionID + " " + s[3]
 				appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgApproveRequest, payload)
 			case "handle":
@@ -324,30 +327,45 @@ func executeCmd() {
 				appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgHandleInvitation, payload)
 			case "approve":
 			case "a":
-				contact, _ := getContact(state.SelectedContact)
-				payload := contact.Connection.ConnectionID + " " + s[3]
+				contact, err := getContact(state.SelectedContact)
+				if err != nil {
+					break
+				}
+				payload := contact.ConnectionID + " " + s[3]
 				appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgApproveInvitation, payload)
 			case "create":
 			case "c":
 				appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgCreateInvitation, "")
 			case "router":
 			case "r":
-				contact, _ := getContact(state.SelectedContact)
+				contact, err := getContact(state.SelectedContact)
+				if err != nil {
+					break
+				}
 				appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgCreateInvitation, contact.ConnectionID)
 			}
 		case "delete":
 		case "d":
-			contact, _ := getContact(state.SelectedContact)
+			contact, err := getContact(state.SelectedContact)
+			if err != nil {
+				break
+			}
 			messages.Set([]string{})
 			state.Messages[contact.ConnectionID] = []model.TextMessage{}
 			appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgDeleteConnection, contact.ConnectionID)
 		case "mediator":
 		case "m":
-			contact, _ := getContact(state.SelectedContact)
+			contact, err := getContact(state.SelectedContact)
+			if err != nil {
+				break
+			}
 			appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgAddMediator, contact.ConnectionID)
 		case "status":
 		case "s":
-			contact, _ := getContact(state.SelectedContact)
+			contact, err := getContact(state.SelectedContact)
+			if err != nil {
+				break
+			}
 			appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgGetConnectionStatus, contact.Connection.ConnectionID)
 		}
 	case "chain", "c":
@@ -361,7 +379,10 @@ func executeCmd() {
 				// render the payment request
 				RenderPresentationRequest("Please enter the payment request details", r, func(i interface{}) {
 					// when the payment request has been filled get the updated data
-					contact, _ := getContact(state.SelectedContact)
+					contact, err := getContact(state.SelectedContact)
+					if err != nil {
+						return
+					}
 					tm := model.NewTextMessage(contact.ConnectionID, appCfg.ControllerName, helpers.ToJson(i))
 					// route the message to the agent
 					appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgSendText, tm)
@@ -394,7 +415,10 @@ func executeCmd() {
 		case "registration-credential", "rc":
 			r := model.NewRegistrationCredentialRequest("EU")
 			RenderPresentationRequest("Enter registration request", r, func(i interface{}) {
-				contact, _ := getContact(state.SelectedContact)
+				contact, err := getContact(state.SelectedContact)
+				if err != nil {
+					return
+				}
 				tm := model.NewTextMessage(contact.ConnectionID, appCfg.ControllerName, helpers.ToJson(i))
 				// route the message to the agent
 				appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgSendText, tm)
@@ -403,7 +427,10 @@ func executeCmd() {
 			r := model.NewLicenseCredentialRequest("MICAEMI", "EU")
 			RenderPresentationRequest("Enter license request", r, func(i interface{}) {
 				// when the payment request has been filled get the updated data
-				contact, _ := getContact(state.SelectedContact)
+				contact, err := getContact(state.SelectedContact)
+				if err != nil {
+					return
+				}
 				tm := model.NewTextMessage(contact.ConnectionID, appCfg.ControllerName, helpers.ToJson(i))
 				// route the message to the agent
 				appCfg.RuntimeMsgs.AgentWalletIn <- config.NewAppMsg(config.MsgSendText, tm)
@@ -412,7 +439,10 @@ func executeCmd() {
 			r := model.NewEMoneyApplicationRequest(appCfg.ControllerDID())
 			RenderPresentationRequest("Enter E-Money request details", r, func(i interface{}) {
 				rF := i.(model.EMoneyApplicationRequest)
-				contact, _ := getContact(state.SelectedContact)
+				contact, err := getContact(state.SelectedContact)
+				if err != nil {
+					return
+				}
 				// calculate the "ZKP"
 				data := [][]byte{
 					[]byte(rF.Name),
@@ -449,10 +479,18 @@ func getContact(id int) (c model.Contact, err error) {
 		err = fmt.Errorf("contact list empty")
 		return
 	}
+	if id >= contacts.Length() {
+		err = fmt.Errorf("out of bounds")
+		return
+	}
 	i, err := contacts.GetValue(id)
 	if err != nil {
 		return
 	}
 	c = i.(model.Contact)
+	if c.Connection == nil {
+		err = fmt.Errorf("out of bounds")
+		return
+	}
 	return
 }
