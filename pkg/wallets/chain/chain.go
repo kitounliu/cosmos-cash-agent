@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/allinbits/cosmos-cash-agent/pkg/config"
 	"github.com/allinbits/cosmos-cash-agent/pkg/helpers"
 	"github.com/allinbits/cosmos-cash-agent/pkg/model"
@@ -12,8 +15,6 @@ import (
 	vcTypes "github.com/allinbits/cosmos-cash/v2/x/verifiable-credential/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"google.golang.org/grpc"
-	"net/http"
-	"time"
 
 	"github.com/allinbits/cosmos-cash/v2/app"
 	didTypes "github.com/allinbits/cosmos-cash/v2/x/did/types"
@@ -222,34 +223,38 @@ func callFaucet(faucetURL, address string) {
 func (cc *ChainClient) Run(hub *config.MsgHub) {
 
 	// send updates about balances
-	t0 := time.NewTicker(30 * time.Second)
+	t0 := time.NewTicker(10 * time.Second)
 	go func() {
 		for {
 			log.Infoln("ticker! retrieving balances for ", cc.acc)
-			balances := cc.GetBalances(cc.acc.String())
-			hub.Notification <- config.NewAppMsg(config.MsgBalances, balances)
+			if balances, err := cc.GetBalances(cc.acc.String()); err == nil {
+				hub.Notification <- config.NewAppMsg(config.MsgBalances, balances)
+			}
 			<-t0.C
 		}
 	}()
 
 	// send updates about credentials
-	t1 := time.NewTicker(30 * time.Second)
+	t1 := time.NewTicker(10 * time.Second)
 	go func() {
 		for {
 			log.Infoln("ticker! retrieving credentials for ", cc.did)
-			vcs := cc.GetHolderPublicVCS(cc.did.String())
-			hub.Notification <- config.NewAppMsg(config.MsgPublicVCs, vcs)
+			if vcs, err := cc.GetHolderPublicVCS(cc.did.String()); err == nil {
+				hub.Notification <- config.NewAppMsg(config.MsgPublicVCs, vcs)
+			}
+
 			<-t1.C
 		}
 	}()
 
 	// send updates about credentials
-	t3 := time.NewTicker(30 * time.Second)
+	t3 := time.NewTicker(10 * time.Second)
 	go func() {
 		for {
 			log.Infoln("ticker! retrieving marketplaces for ", cc.did)
-			vcs := cc.GetLicenseCredentials()
-			hub.Notification <- config.NewAppMsg(config.MsgMarketplaces, vcs)
+			if vcs, err := cc.GetLicenseCredentials(); err == nil {
+				hub.Notification <- config.NewAppMsg(config.MsgMarketplaces, vcs)
+			}
 			<-t3.C
 		}
 	}()

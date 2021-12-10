@@ -2,6 +2,7 @@ package chain
 
 import (
 	"context"
+
 	didTypes "github.com/allinbits/cosmos-cash/v2/x/did/types"
 	vcTypes "github.com/allinbits/cosmos-cash/v2/x/verifiable-credential/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -24,17 +25,18 @@ func (cc *ChainClient) GetBalance(address string) *sdk.Coin {
 }
 
 // GetBalances retrieves all the balances for an account
-func (cc *ChainClient) GetBalances(address string) sdk.Coins {
+func (cc *ChainClient) GetBalances(address string) (sdk.Coins, error) {
 	bankClient := banktypes.NewQueryClient(cc.ctx)
 	bankRes, err := bankClient.AllBalances(
 		context.Background(),
 		&banktypes.QueryAllBalancesRequest{Address: address},
 	)
 	if err != nil {
-		log.Fatalln("error requesting balance", err)
+		log.Errorln("error requesting balance", err)
+		return sdk.NewCoins(), err
 	}
 	log.Infoln("balances for", address, "are", bankRes.GetBalances())
-	return bankRes.GetBalances()
+	return bankRes.GetBalances(), nil
 }
 
 // GetChainOfTrust retrieve the chain of trust for a token DENOM
@@ -144,7 +146,7 @@ func (cc *ChainClient) GetDenomChainOfTrust(denom string) (cot []vcTypes.Verifia
 		if _, ok := v.CredentialSubject.(*vcTypes.VerifiableCredential_RegulatorCred); ok {
 			if v.GetSubjectDID() == regulatorDID {
 				cot = append(cot, v)
-				regulatorDID = v.GetIssuerDID()
+				//regulatorDID = v.GetIssuerDID()
 				break
 			}
 		}
@@ -153,14 +155,15 @@ func (cc *ChainClient) GetDenomChainOfTrust(denom string) (cot []vcTypes.Verifia
 }
 
 // GetHolderPublicVCS retrieve the VCS holded by a did
-func (cc *ChainClient) GetHolderPublicVCS(didID string) (vcs []vcTypes.VerifiableCredential) {
+func (cc *ChainClient) GetHolderPublicVCS(didID string) (vcs []vcTypes.VerifiableCredential, err error) {
 	client := vcTypes.NewQueryClient(cc.ctx)
 	res, err := client.VerifiableCredentials(
 		context.Background(),
 		&vcTypes.QueryVerifiableCredentialsRequest{},
 	)
 	if err != nil {
-		log.Fatalln("error requesting balance", err)
+		log.Errorln("error requesting public vcs", err)
+		return
 	}
 	holderDID := didTypes.DID(didID)
 	for _, v := range res.GetVcs() {
@@ -172,14 +175,15 @@ func (cc *ChainClient) GetHolderPublicVCS(didID string) (vcs []vcTypes.Verifiabl
 }
 
 // GetLicenseCredentials retrieve the VCS holded by a did
-func (cc *ChainClient) GetLicenseCredentials() (vcs []vcTypes.VerifiableCredential) {
+func (cc *ChainClient) GetLicenseCredentials() (vcs []vcTypes.VerifiableCredential, err error) {
 	client := vcTypes.NewQueryClient(cc.ctx)
 	res, err := client.VerifiableCredentials(
 		context.Background(),
 		&vcTypes.QueryVerifiableCredentialsRequest{},
 	)
 	if err != nil {
-		log.Fatalln("error requesting balance", err)
+		log.Errorln("error requesting license credentials", err)
+		return
 	}
 	for _, v := range res.GetVcs() {
 		if _, ok := v.CredentialSubject.(*vcTypes.VerifiableCredential_LicenseCred); ok {
@@ -198,7 +202,7 @@ func (cc *ChainClient) GetPublicVC(vcID string) vcTypes.VerifiableCredential {
 		&vcTypes.QueryVerifiableCredentialRequest{VerifiableCredentialId: vcID},
 	)
 	if err != nil {
-		log.Fatalln("error requesting balance", err)
+		log.Fatalln("error requesting credential", err)
 	}
 	return res.GetVerifiableCredential()
 }

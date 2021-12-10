@@ -288,7 +288,7 @@ func (s *SSIWallet) Close() {
 func (s *SSIWallet) Run(hub *config.MsgHub) {
 
 	// send updates about verifiable credentials
-	t0 := time.NewTicker(30 * time.Second)
+	t0 := time.NewTicker(3 * time.Second)
 	go func() {
 		for {
 			log.Infoln("ticker! retrieving verifiable credentials")
@@ -309,7 +309,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 	}()
 
 	// send updates about contacts
-	t1 := time.NewTicker(10 * time.Second)
+	t1 := time.NewTicker(3 * time.Second)
 	go func() {
 		for {
 			connections, err := s.didExchangeClient.QueryConnections(&didexchange.QueryConnectionsParams{})
