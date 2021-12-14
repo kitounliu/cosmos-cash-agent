@@ -129,6 +129,29 @@ https://uniresolver.cosmos-cash.app.beta.starport.cloud/
 CLI resolver command:
 cosmos-cashd query did did %s --node https://rpc.cosmos-cash.app.beta.starport.cloud:443 --chain-id cosmoscash-testnet --output json | jq
 
+Command Sequences:
+> Connect to a mediator
+
+s i h 
+s i a + mediatorCID
+s m   + mediatorCID
+
+> Invitation between peers
+PeerA                            PeerB
+s i r  
+  |
+json   ----------------------->  s i h + json 
+                                 s i a + mediatorCID + peerCID
+s i f + mediatorCID + peerCID
+
+> Payment request
+d pr 
+
+> Emoney Application
+d ea 
+
+
+
 `, appCfg.ControllerName, appCfg.ControllerDID(), appCfg.ControllerDID()))
 
 	main := container.NewMax(ml)
