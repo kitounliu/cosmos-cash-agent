@@ -109,3 +109,16 @@ func NewPoKYCCredential(issuerDID, subjectDID string, cr EMoneyApplicationReques
 		),
 	)
 }
+
+// Credentials sorts verifiable credentials by issued date.
+type Credentials []verifiable.Credential
+
+func (c Credentials) Len() int           { return len(c) }
+func (c Credentials) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c Credentials) Less(i, j int) bool {
+	if c[i].Issued != nil && c[j].Issued != nil {
+		return c[i].Issued.UTC().After(c[j].Issued.UTC())
+	}
+	return c[i].ID < c[j].ID
+
+}

@@ -16,7 +16,6 @@ import (
 	"github.com/allinbits/cosmos-cash-agent/pkg/model"
 	vcTypes "github.com/allinbits/cosmos-cash/v2/x/verifiable-credential/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -89,7 +88,7 @@ func dispatcher(window fyne.Window, in chan config.AppMsg) {
 		case config.MsgVCs:
 			// populate private credentials
 			var credentialIDs []string
-			for _, c := range m.Payload.([]verifiable.Credential) {
+			for _, c := range m.Payload.(model.Credentials) {
 				credentialIDs = append(credentialIDs, c.ID)
 			}
 			privateCredentials.Set(credentialIDs)

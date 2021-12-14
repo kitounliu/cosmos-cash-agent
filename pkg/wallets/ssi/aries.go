@@ -292,7 +292,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 	go func() {
 		for {
 			log.Infoln("ticker! retrieving verifiable credentials")
-			var vcs []verifiable.Credential
+			var vcs model.Credentials
 			if credentials, err := s.w.GetAll(s.walletAuthToken, wallet.Credential); err == nil {
 				for _, vcRaw := range credentials {
 					b, _ := vcRaw.MarshalJSON()
@@ -303,6 +303,7 @@ func (s *SSIWallet) Run(hub *config.MsgHub) {
 			} else {
 				log.Errorln("failed to read credentials from wallet", err)
 			}
+			sort.Sort(vcs)
 			hub.Notification <- config.NewAppMsg(config.MsgVCs, vcs)
 			<-t0.C
 		}
