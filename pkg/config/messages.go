@@ -81,8 +81,8 @@ const (
 
 // AppMsg are messages that are exchanged within the app
 type AppMsg struct {
-	Typ     int
-	Payload interface{}
+	Typ     int         // message type (see list above)
+	Payload interface{} // content of the message, the recipient must know how to process it
 }
 
 func NewAppMsg(typ int, payload interface{}) AppMsg {

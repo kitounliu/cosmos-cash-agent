@@ -1,115 +1,64 @@
-## Cosmos Cash controllers
+## Cosmos Cash Agent
 
-The [Cosmos Cash Protocol](https://github.com/allinbits/cosmos-cash) is a Decentralized Key Management System (DKMS) which needs agents to implement certain protocols to allow the project to leverage Self sovereign identity [SSI](https://en.wikipedia.org/wiki/Self-sovereign_identity)
-
-### Key Characteristics
-
-- A [blockchain interface layer](https://github.com/allinbits/cosmos-cash-resolver) (known as a resolver) for creating and signing blockchain transactions.
-- A resolver can be seen as part of a larger component known as the [VDR](https://github.com/allinbits/cosmos-cash):
-  > Aries Verifiable Data Registry Interface: An interface for verifying data against an underlying ledger.
-- A cryptographic wallet that can be used for secure storage of cryptographic secrets and other information (the secure storage tech, not a UI) used to build blockchain clients.
-- An encrypted messaging system for allowing off-ledger interaction between those clients using multiple transport protocols.
-- An implementation of ZKP-capable W3C verifiable credentials using the ZKP primitives found in Ursa.
-- An implementation of the Decentralized Key Management System (DKMS) specification currently being incubated in under the name Cosmos Cash by AllinBits.
-- A mechanism to build higher-level protocols and API-like use cases based on the secure messaging functionality.
-
-#### Protocols
-
-The following protocols are needed in the Cosmos Cash project.
-
-#### 1. DIDExchange Protocol
-
-#### 2. Introduce Protocol
-
-#### 3. IssueCredential Protocol
-
-#### 4. KMS
-
-#### 5. Mediator
-
-#### 6. Messaging
-
-#### 7. OutOfBand Protocol
-
-#### 8. PresentProof Protocol
-
-#### 9. VDR
-
-#### 10. Verifiable
-
-### How to run
-
-- `./scripts/start-agent.sh`
+This project implements a demo interface for the [Cosmos Cash](https://github.com/allinbits/cosmos-cash) project to showcase the interactions from the user perspective.
 
 
-## Agent Webhook Relayer
+## Architecture
 
-The agent webhook relayer is a simple rest service that collects webhooks messages from agents
-and makes them available for an edger agent or a controller to fetch them asynchronously.
+> Note: The project has been developed as a proof of concept!
 
-The relayer exposes the following endpoints:
+The entrypoint for the desktop client is `cmd/edge-agent/main.go`
 
-### Agent Webhook Receiver
+The project is composed of the following components:
 
-This endpoint should be used in an Aries startup option `--webhook-url`
+- User interface: ([`pkg/ui`](https://github.com/allinbits/cosmos-cash-agent/tree/main/pkg/ui))
+- Token wallet ([`pkg/wallets/chain`](https://github.com/allinbits/cosmos-cash-agent/tree/main/pkg/wallets/chain))
+- SSI Wallet ([`pkg/wallets/ssi`](https://github.com/allinbits/cosmos-cash-agent/tree/main/pkg/wallets/ssi))
 
-```
-POST /ws/:agent
+The components run in their own isolated event loop, events for each component are dispatched via channels.
 
-:msg_body
+The messages are implemented as `AppMsg` struct that is:
+
+```golang
+// AppMsg are messages that are exchanged within the app
+type AppMsg struct {
+    Typ     int         // message type (see list above)
+    Payload interface{} // content of the message, the recipient must know how to process it
+}
 ```
 
-- the `:agent` path parameter is used to group the messages from the same agent.
-- the `:msg_body`
+Messages related code is defined [here](https://github.com/allinbits/cosmos-cash-agent/blob/main/pkg/config/messages.go).
 
-#### Example
+### Component logic 
 
-In this example we are running Bob Aries agent, to collect Aries webhook messages for Bob
-we will configure the agent as follows:
+Most of the logic is concentrated in the following source files:
+- User interface: [`pkg/ui/handlers.go`](https://github.com/allinbits/cosmos-cash-agent/blob/main/pkg/ui/handlers.go)
+- Token wallet: [`pkg/wallets/chain/chain.go`](https://github.com/allinbits/cosmos-cash-agent/blob/main/pkg/wallets/chain/chain.go)
+- SSI wallet: [`pkg/wallets/ssi/aries.go`](https://github.com/allinbits/cosmos-cash-agent/blob/main/pkg/wallets/ssi/aries.go)
 
-```
-aries start \
-	--api-host localhost:7090 \
-	--inbound-host http@localhost:7091 \
-	--inbound-host-external http@http://localhost:7091 \
-	--webhook-url http://localhost:2110/wh/bob \         <- this is the webook url for agent
-	--agent-default-label BobAgent \
-	--database-type leveldb \
-	--database-prefix alice \
-	--log-level DEBUG \
-	--http-resolver-url cosmos@http://localhost:2109/identifier/aries/
-```
 
-### Agent Webhook Retriever
+### Setup 
 
-This endpoint should be used by a controller or an edge agent to retrieve the messages that
-have been collected by the relayer for an agent.
+The ui is built using [fyne](https://fyne.io/) framework. 
 
-It returns a list of webhook messages, note that once the messages are read they are removed
-from the relayer.
+> Note: make sure that you have the [prerequisites](https://developer.fyne.io/started/#prerequisites) installed before running 
 
-```
-POST /messages/:agent
-
-[
-  {
-    "@id": "...."
-  },
-  ...
-]
-```
-
-### How to run
+To run the app targeting the Cosmos Cash testnet, run 
 
 ```sh
-go run cmd/webook-relayer/main.go -h                                                                                                                         │~
-
-Usage of main.go:                                                                                                                │~
-  -listen string                                                                                                                                               │~
-        server listen address (default ":2110")                                                                                                                │~
-  -n int                                                                                                                                                       │~
-        Max number of messages that are kept per agent (default 4096)
-  -x int                                                                                                                                                       │~
-        Max-Requests-Per-Seconds: define the throttle limit in requests per seconds (default 10)
-
+make run-live
 ```
+
+## Screenshots
+
+![](./docs/assets/app_screenshot.png)
+
+<!--
+## See it in action 
+
+The following video shows a demo interaction between two actors
+
+[![Alt text](https://img.youtube.com/vi/YGikLx6ow0k/2.jpg)](https://www.youtube.com/watch?v=YGikLx6ow0k)
+
+-->
+
