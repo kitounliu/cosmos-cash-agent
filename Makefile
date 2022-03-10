@@ -4,7 +4,7 @@ BUILD_FOLDER = build
 APP_VERSION = $(git describe --tags --always)
 
 clean:
-	rm -rf ~/.config/cosmos-cash-agent
+	rm -rf ~/.config/cosmos-cash-agent-2
 
 run-dev:
 	CASH_ENV=dev go run cmd/edge-agent/main.go

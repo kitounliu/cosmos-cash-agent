@@ -17,7 +17,7 @@ func NewEdgeConfigSchema(controllerName string) EdgeConfigSchema {
 			NodeURI:              helpers.Env("NODE_URI", "http://127.0.0.1:26657"),
 			FaucetURL:            helpers.Env("FAUCET_URL", "https://faucet.cosmos-cash.app.beta.starport.cloud"),
 			ChainID:              helpers.Env("CHAIN_ID", "cash"),
-			CloudAgentWsURL:      helpers.Env("AGENT_WS_URL", "wss://ws.agent.cosmos-cash.app.beta.starport.cloud"),
+			CloudAgentWsURL:      helpers.Env("AGENT_WS_URL", "ws://localhost:8092"),
 			CloudAgentPublicURL:  helpers.Env("AGENT_PUBLIC_URL", "http://localhost:8090"),
 			CosmosDIDResolverURL: helpers.Env("RESOLVER_URL", "http://localhost:2109/identifier/aries/"),
 			ControllerDidID:      uuid.New().String(),
@@ -61,12 +61,14 @@ func (ecs EdgeConfigSchema) ControllerDID() string {
 
 // MediatorDID returns the cloud agent mediator did
 func (ecs EdgeConfigSchema) MediatorDID() string {
-	return "did:cosmos:net:cosmoscash-testnet:mediatortestnetws10"
+	//return "did:cosmos:net:cosmoscash-testnet:mediatortestnetws10"
+	return "did:cosmos:net:cash:mediatortestnetws9"
 }
 
 // CloudAgentAPIURL returns the cloud agent mediator did
 func (ecs EdgeConfigSchema) CloudAgentAPIURL() string {
-	return "https://agent.cosmos-cash.app.beta.starport.cloud"
+//	return "https://agent.cosmos-cash.app.beta.starport.cloud"
+	return "http://localhost:8090"
 }
 
 func GetAppData(subPath ...string) (string, bool) {
@@ -80,7 +82,7 @@ func GetAppConfig(subPath ...string) (cfgPath string, exists bool) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	cfgPath = path.Join(cfgPath, "cosmos-cash-agent")
+	cfgPath = path.Join(cfgPath, "cosmos-cash-agent-2")
 	for _, sp := range subPath {
 		cfgPath = path.Join(cfgPath, sp)
 	}
