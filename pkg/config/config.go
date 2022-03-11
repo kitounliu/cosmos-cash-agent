@@ -67,7 +67,7 @@ func (ecs EdgeConfigSchema) MediatorDID() string {
 
 // CloudAgentAPIURL returns the cloud agent mediator did
 func (ecs EdgeConfigSchema) CloudAgentAPIURL() string {
-//	return "https://agent.cosmos-cash.app.beta.starport.cloud"
+	//return "https://agent.cosmos-cash.app.beta.starport.cloud"
 	return "http://localhost:8090"
 }
 

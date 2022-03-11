@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"net/http"
 	"time"
 
@@ -75,12 +77,24 @@ func Client(cfg config.EdgeConfigSchema, password string) *ChainClient {
 			log.Fatalln("error loading private key", err)
 		}
 		log.Infoln("private key loaded from", armorPath)
+		armorData, err := kr.ExportPrivKeyArmor(cfg.ControllerName, password)
+		fmt.Println("armor data:\n", armorData)
 	}
 	// now get the account
 	ki, err := kr.Key(cfg.ControllerName)
 	if err != nil {
 		log.Fatalln("cannot load stored key by uid", err)
 	}
+	// print public key
+	apk, err := codectypes.NewAnyWithValue(ki.GetPubKey())
+	if err != nil {
+		log.Fatalln("cannot convert public-key", err)
+	}
+	bz, err := codec.ProtoMarshalJSON(apk, nil)
+	if err != nil {
+		log.Fatalln("cannot marshal public-key", err)
+	}
+	log.Infoln("public-key is: ", string(bz))
 	// RPC client for transactions
 	netCli, err := client.NewClientFromNode(cfg.NodeURI)
 	if err != nil {
